@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Work Status Module - Final Working Version</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f8f9fa; color: #333; }
+        .top-bar { 
+            background-color: #007BFF; color: white; padding: 15px 20px; 
+            display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold;
+        }
+        .top-bar button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; }
+        .burger-menu { font-size: 24px; cursor: pointer; }
+        .sidebar { 
+            position: fixed; left: 0; top: 60px; width: 220px; height: calc(100vh - 60px); 
+            background-color: #e9ecef; padding: 20px 0; overflow-y: auto; border-right: 1px solid #ddd;
+        }
+        .sidebar ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar li { 
+            padding: 15px 25px; cursor: pointer; border-bottom: 1px solid #dee2e6; 
+            transition: all 0.3s;
+        }
+        .sidebar li:hover, .sidebar li.active { background-color: #007BFF; color: white; }
+        .main-content { margin-left: 220px; padding: 25px; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        h2 { color: #007BFF; border-bottom: 2px solid #007BFF; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        th { background-color: #007BFF; color: white; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { 
+            background-color: #007BFF; color: white; padding: 8px 16px; border: none; 
+            border-radius: 4px; cursor: pointer; margin: 5px 3px; font-size: 14px;
+        }
+        button:hover { background-color: #0056b3; }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .sub-row { background-color: #f8f9fa; }
+        .sub-row td { padding-left: 30px; }
+        .add-row-btn { 
+            display: block; width: 60px; height: 60px; margin: 20px auto; 
+            background: #28a745; color: white; font-size: 30px; border-radius: 50%; 
+            border: none; cursor: pointer;
+        }
+        .status-update { background: #e7f3ff; padding: 8px; margin: 5px 0; border-left: 4px solid #007BFF; font-size: 13px; }
+        .tab-buttons { margin: 20px 0; }
+        .tab-btn { background: #e9ecef; padding: 10px 20px; margin-right: 10px; border-radius: 6px; cursor: pointer; }
+        .tab-btn.active { background: #007BFF; color: white; }
+        .filter-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .filter-row input, .filter-row select { width: auto; flex: 1; min-width: 150px; }
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; top: 0; }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div>
+            <span class="burger-menu" onclick="toggleSidebar()">☰</span>
+        </div>
+        <div>Daily Work Status Module</div>
+        <div>User: Admin | <button onclick="alert('Notifications')">Notifications</button> | Settings | Logout</div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <ul>
+            <li class="active" onclick="showScreen('master')">Master Data</li>
+            <li onclick="showScreen('daily')">Daily Entry</li>
+            <li onclick="showScreen('report')">Report</li>
+            <li onclick="showScreen('dashboard')">Dashboard</li>
+            <li onclick="showScreen('users')">User Management</li>
+            <li onclick="window.history.back()">← Back to Main App</li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- MASTER DATA -->
+        <div id="master" class="screen active">
+            <h2>Master Data</h2>
+            <div class="tab-buttons">
+                <span class="tab-btn active" onclick="openMasterTab('projects')">Manage Projects</span>
+                <span class="tab-btn" onclick="openMasterTab('personnel')">Assigned Personnel</span>
+                <span class="tab-btn" onclick="openMasterTab('statuses')">Final Status</span>
+            </div>
+
+            <!-- Projects Tab -->
+            <div id="projects-tab" class="master-tab active">
+                <h3>Manage Projects</h3>
+                <form id="projectForm">
+                    <div class="form-group">
+                        <label>Project Name:</label>
+                        <input type="text" id="projectName" placeholder="Enter project name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Client Name:</label>
+                        <input type="text" id="clientName" placeholder="Enter client name">
+                    </div>
+                    <div class="form-group">
+                        <label>Project Manager:</label>
+                        <input type="text" id="pmName" placeholder="Enter PM name">
+                    </div>
+                    <div class="form-group">
+                        <label>Location:</label>
+                        <input type="text" id="location" placeholder="Enter location">
+                    </div>
+                    <div class="form-group">
+                        <label>Timeline (Start-End):</label>
+                        <input type="text" id="timeline" placeholder="e.g., 2025-01-01 to 2025-12-31">
+                    </div>
+                    <div class="form-group">
+                        <label>Category:</label>
+                        <select id="category">
+                            <option value="">Select Category</option>
+                            <option value="development">Development</option>
+                            <option value="training">Training</option>
+                            <option value="consulting">Consulting</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-success" onclick="addProject()">Add Project</button>
+                </form>
+                <table id="projectsTable">
+                    <thead>
+                        <tr><th>Name</th><th>Client</th><th>PM</th><th>Location</th><th>Timeline</th><th>Category</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Personnel Tab -->
+            <div id="personnel-tab" class="master-tab">
+                <h3>Assigned Personnel</h3>
+                <input type="text" id="newPerson" placeholder="Enter person name">
+                <button class="btn-success" onclick="addPerson()">Add Person</button>
+                <table id="personnelTable">
+                    <thead><tr><th>Name</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Statuses Tab -->
+            <div id="statuses-tab" class="master-tab">
+                <h3>Final Status</h3>
+                <input type="text" id="newStatus" placeholder="e.g., On Hold">
+                <button class="btn-success" onclick="addStatus()">Add Status</button>
+                <table id="statusTable">
+                    <thead><tr><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- DAILY ENTRY -->
+        <div id="daily" class="screen">
+            <h2>Daily Entry - Log Activities</h2>
+            <div class="filter-row">
+                <input type="text" id="filterProject" placeholder="Filter Project" oninput="filterTable()">
+                <input type="text" id="filterDate" placeholder="Filter Date/Time" oninput="filterTable()">
+                <input type="text" id="filterActivity" placeholder="Filter Main Activity" oninput="filterTable()">
+                <input type="text" id="filterAssigned" placeholder="Filter Assigned To" oninput="filterTable()">
+                <input type="text" id="filterHours" placeholder="Filter Hours" oninput="filterTable()">
+                <select id="filterStatus" oninput="filterTable()">
+                    <option value="">Filter Final Status</option>
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+            <table id="dailyTable">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Project</th>
+                        <th style="width: 10%;">Date<br>& Time</th>
+                        <th style="width: 20%;">Main Activity</th>
+                        <th style="width: 15%;">Assigned To</th>
+                        <th style="width: 15%;">Actions</th>
+                        <th style="width: 10%;">Hours</th>
+                        <th style="width: 15%;">Final Status</th>
+                    </tr>
+                </thead>
+                <tbody id="dailyBody">
+                    <!-- Rows added dynamically -->
+                </tbody>
+            </table>
+            <button class="add-row-btn" onclick="addNewRow()">+</button>
+        </div>
+
+        <!-- REPORT -->
+        <div id="report" class="screen">
+            <h2>Report - Daily Work Summary</h2>
+            <div class="filter-group">
+                <label>Report Type:</label>
+                <select id="reportType">
+                    <option value="daily">Daily Summary</option>
+                    <option value="project">Project-wise</option>
+                    <option value="user">User-wise</option>
+                    <option value="status">Status-wise</option>
+                </select>
+                <label>Project:</label>
+                <select id="reportProjectFilter">
+                    <option value="">All Projects</option>
+                    <!-- Dynamically populated -->
+                </select>
+                <label>Start Date:</label>
+                <input type="date" id="startDate">
+                <label>End Date:</label>
+                <input type="date" id="endDate">
+                <label>User:</label>
+                <select id="reportUserFilter">
+                    <option value="">All Users</option>
+                    <!-- Dynamically populated -->
+                </select>
+                <button onclick="generateReport()">Generate</button>
+                <button onclick="exportReport('pdf')">Export PDF</button>
+                <button onclick="exportReport('excel')">Export Excel</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="progressChart"></canvas>
+            </div>
+            <table id="reportTable">
+                <thead><tr><th>Project</th><th>Date</th><th>Activity</th><th>Status Update</th><th>Hours</th><th>Status</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Dashboard Placeholder -->
+        <div id="dashboard" class="screen">
+            <h2>Dashboard - Overview</h2>
+            <div class="notification">Reminder: Log today's entry by EOD!</div>
+            <p>Today's Progress: 75% Complete | Pending: 3 Activities</p>
+            <!-- Add more metrics/charts as needed -->
+        </div>
+
+        <!-- User Management Placeholder -->
+        <div id="users" class="screen">
+            <h2>User Management</h2>
+            <p>Role-based access: Admin, Manager, Employee. Add/edit users here.</p>
+            <!-- Add form/table for users -->
+        </div>
+
+    </div>
+
+    <script>
+        // Demo Data
+        let projects = [
+            { id: 1, name: 'Project Alpha', client: 'Client A', pm: 'PM1', location: 'NYC', timeline: '2025-01-01 to 2025-06-30', category: 'development' },
+            { id: 2, name: 'Project Beta', client: 'Client B', pm: 'PM2', location: 'LA', timeline: '2025-07-01 to 2025-12-31', category: 'training' }
+        ];
+        let personnel = ["John Doe", "Jane Smith"];
+        let statuses = ["Not Started", "Ongoing", "Completed"];
+        let entries = [];  // For report demo
+
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Show Screen
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.style.display = 'none');
+            document.getElementById(screenId).style.display = 'block';
+            document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
+            const activeLi = [...document.querySelectorAll('.sidebar li')].find(li => li.textContent.includes(screenId.charAt(0).toUpperCase() + screenId.slice(1)));
+            if (activeLi) activeLi.classList.add('active');
+            if (screenId === 'master') openMasterTab('projects');
+            if (screenId === 'daily') { populateProjectDropdowns(); populatePersonDropdowns(); populateStatusDropdowns(); filterTable(); }
+            if (screenId === 'report') populateReportFilters();
+        }
+
+        // Master Tab
+        function openMasterTab(tabId) {
+            document.querySelectorAll('.master-tab').forEach(tab => tab.style.display = 'none');
+            document.getElementById(tabId + '-tab').style.display = 'block';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = [...document.querySelectorAll('.tab-btn')].find(btn => btn.textContent.includes(tabId.charAt(0).toUpperCase() + tabId.slice(1)));
+            if (activeBtn) activeBtn.classList.add('active');
+            if (tabId === 'projects') populateProjectsTable();
+            if (tabId === 'personnel') populatePersonnelTable();
+            if (tabId === 'statuses') populateStatusTable();
+        }
+
+        // Master Functions
+        function addProject() {
+            const project = {
+                id: Date.now(),
+                name: document.getElementById('projectName').value,
+                client: document.getElementById('clientName').value,
+                pm: document.getElementById('pmName').value,
+                location: document.getElementById('location').value,
+                timeline: document.getElementById('timeline').value,
+                category: document.getElementById('category').value
+            };
+            if (project.name) {
+                projects.push(project);
+                populateProjectsTable();
+                populateProjectDropdowns();
+                document.getElementById('projectForm').reset();
+            }
+        }
+
+        function populateProjectsTable() {
+            const tbody = document.querySelector('#projectsTable tbody');
+            tbody.innerHTML = '';
+            projects.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${p.name}</td><td>${p.client}</td><td>${p.pm}</td><td>${p.location}</td><td>${p.timeline}</td><td>${p.category}</td>
+                    <td><button class="btn-danger btn-sm" onclick="deleteMasterItem('projects', ${p.id})">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populatePersonnelTable() {
+            const tbody = document.querySelector('#personnelTable tbody');
+            tbody.innerHTML = '';
+            personnel.forEach((person, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" value="${person}" onchange="updatePersonnel(${index}, this.value)"></td>
+                    <td><button class="btn-danger btn-sm" onclick="deleteMasterItem('personnel', ${index})">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function addPerson() {
+            const name = document.getElementById('newPerson').value.trim();
+            if (name) {
+                personnel.push(name);
+                document.getElementById('newPerson').value = '';
+                populatePersonnelTable();
+                populatePersonDropdowns();
+            }
+        }
+
+        function updatePersonnel(index, value) {
+            if (value.trim()) personnel[index] = value.trim();
+            populatePersonDropdowns();
+        }
+
+        function populateStatusTable() {
+            const tbody = document.querySelector('#statusTable tbody');
+            tbody.innerHTML = '';
+            statuses.forEach((status, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" value="${status}" onchange="updateStatus(${index}, this.value)"></td>
+                    <td><button class="btn-danger btn-sm" onclick="deleteMasterItem('statuses', ${index})">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function addStatus() {
+            const name = document.getElementById('newStatus').value.trim();
+            if (name) {
+                statuses.push(name);
+                document.getElementById('newStatus').value = '';
+                populateStatusTable();
+                populateStatusDropdowns();
+            }
+        }
+
+        function updateStatus(index, value) {
+            if (value.trim()) statuses[index] = value.trim();
+            populateStatusDropdowns();
+        }
+
+        function deleteMasterItem(type, id) {
+            if (confirm('Delete this item?')) {
+                if (type === 'projects') {
+                    projects = projects.filter(p => p.id !== id);
+                    populateProjectsTable();
+                    populateProjectDropdowns();
+                } else if (type === 'personnel') {
+                    personnel.splice(id, 1);
+                    populatePersonnelTable();
+                    populatePersonDropdowns();
+                } else if (type === 'statuses') {
+                    statuses.splice(id, 1);
+                    populateStatusTable();
+                    populateStatusDropdowns();
+                }
+            }
+        }
+
+        // Daily Entry Functions
+        function populateProjectDropdowns() {
+            document.querySelectorAll('.project-select').forEach(select => {
+                select.innerHTML = projects.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+            });
+        }
+
+        function populatePersonDropdowns() {
+            document.querySelectorAll('.person-select').forEach(select => {
+                select.innerHTML = personnel.map(person => `<option value="${person}">${person}</option>`).join('');
+            });
+        }
+
+        function populateStatusDropdowns() {
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.innerHTML = statuses.map(status => `<option value="${status}">${status}</option>`).join('');
+            });
+            const filterStatus = document.getElementById('filterStatus');
+            filterStatus.innerHTML = '<option value="">All Statuses</option>' + statuses.map(status => `<option value="${status}">${status}</option>`).join('');
+        }
+
+        function addNewRow() {
+            const tbody = document.getElementById('dailyBody');
+            const tr = document.createElement('tr');
+            tr.classList.add('main-row');
+            const now = new Date().toLocaleString();
+            tr.innerHTML = `
+                <td><select class="project-select"></select></td>
+                <td>${now}</td>
+                <td><textarea placeholder="Enter main activity..."></textarea></td>
+                <td><select class="person-select"></select></td>
+                <td>
+                    <button onclick="addStatusUpdate(this.parentElement.parentElement)">Add Status Update</button>
+                    <button class="btn-success" onclick="addSubActivity(this.parentElement.parentElement)">+ Add Sub Activity</button>
+                </td>
+                <td><input type="number" min="0" step="0.5"></td>
+                <td><select class="status-select"></select></td>
+            `;
+            tbody.appendChild(tr);
+            populateProjectDropdowns();
+            populatePersonDropdowns();
+            populateStatusDropdowns();
+        }
+
+        function addSubActivity(mainRow) {
+            const subTr = document.createElement('tr');
+            subTr.classList.add('sub-row');
+            subTr.innerHTML = `
+                <td colspan="2"></td>
+                <td><textarea placeholder="Enter sub activity..."></textarea></td>
+                <td><select class="person-select"></select></td>
+                <td>
+                    <button onclick="addStatusUpdate(this.parentElement.parentElement)">Add Status Update</button>
+                    <button class="btn-danger" onclick="this.parentElement.parentElement.remove()">Delete Sub</button>
+                </td>
+                <td><input type="number" min="0" step="0.5"></td>
+                <td><select class="status-select"></select></td>
+            `;
+            mainRow.after(subTr);
+            populatePersonDropdowns();
+            populateStatusDropdowns();
+        }
+
+        function addStatusUpdate(row) {
+            const note = prompt('Enter status update:');
+            if (note) {
+                const updateDiv = document.createElement('div');
+                updateDiv.classList.add('status-log');
+                updateDiv.textContent = `${new Date().toLocaleString()}: ${note}`;
+                row.querySelector('td:nth-child(3)').appendChild(updateDiv);
+            }
+        }
+
+        // Filter Table
+        function filterTable() {
+            const filterProject = document.getElementById('filterProject').value.toLowerCase();
+            const filterDate = document.getElementById('filterDate').value.toLowerCase();
+            const filterActivity = document.getElementById('filterActivity').value.toLowerCase();
+            const filterAssigned = document.getElementById('filterAssigned').value.toLowerCase();
+            const filterHours = document.getElementById('filterHours').value;
+            const filterStatus = document.getElementById('filterStatus').value.toLowerCase();
+
+            const rows = document.querySelectorAll('#dailyBody tr');
+            let currentMain = null;
+            rows.forEach(row => {
+                if (row.classList.contains('main-row')) {
+                    currentMain = row;
+                    const cells = row.querySelectorAll('td');
+                    const project = cells[0].querySelector('select').value.toLowerCase();
+                    const date = cells[1].textContent.toLowerCase();
+                    const activity = cells[2].querySelector('textarea').value.toLowerCase();
+                    const assigned = cells[3].querySelector('select').value.toLowerCase();
+                    const hours = cells[5].querySelector('input').value;
+                    const status = cells[6].querySelector('select').value.toLowerCase();
+
+                    const match = 
+                        project.includes(filterProject) &&
+                        date.includes(filterDate) &&
+                        activity.includes(filterActivity) &&
+                        assigned.includes(filterAssigned) &&
+                        (filterHours === '' || hours === filterHours) &&
+                        (filterStatus === '' || status.includes(filterStatus));
+
+                    row.style.display = match ? '' : 'none';
+                } else if (row.classList.contains('sub-row') && currentMain) {
+                    row.style.display = currentMain.style.display;
+                }
+            });
+        }
+
+        // Report Functions
+        function populateReportFilters() {
+            const projectSelect = document.getElementById('reportProjectFilter');
+            projectSelect.innerHTML = '<option value="">All Projects</option>' + projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            const userSelect = document.getElementById('reportUserFilter');
+            userSelect.innerHTML = '<option value="">All Users</option>' + personnel.map(person => `<option value="${person}">${person}</option>`).join('');
+        }
+
+        function generateReport() {
+            const type = document.getElementById('reportType').value;
+            const projectFilter = document.getElementById('reportProjectFilter').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const userFilter = document.getElementById('reportUserFilter').value;
+
+            // Demo: Populate table with filtered entries
+            const tbody = document.getElementById('reportTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            // Assuming entries array from daily, filter and add rows
+            entries.forEach(entry => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${entry.project}</td>
+                    <td>${entry.date}</td>
+                    <td>${entry.activity}</td>
+                    <td>${entry.statusUpdate}</td>
+                    <td>${entry.hours}</td>
+                    <td>${entry.status}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Demo Chart
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Completed', 'Ongoing', 'Not Started'],
+                    datasets: [{ data: [30, 50, 20], backgroundColor: ['#28a745', '#ffc107', '#dc3545'] }]
+                }
+            });
+        }
+
+        function exportReport(format) {
+            alert(`Exporting as ${format.toUpperCase()}...`);
+        }
+
+        // Initial Load
+        showScreen('master');
+        addNewRow(); // Add initial row in Daily Entry
+    </script>
+</body>
+</html>

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Analysis - Phase 2.1 Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Main BOQ Table */
+        .table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #dee2e6;
+            color: #333;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .sr-col {
+            width: 60px;
+            text-align: center;
+        }
+
+        .desc-col {
+            width: 20%;
+            min-width: 150px;
+        }
+
+        .unit-col {
+            width: 80px;
+            text-align: center;
+        }
+
+        .qty-col {
+            width: 100px;
+            text-align: right;
+        }
+
+        .rate-col {
+            width: 120px;
+            text-align: right;
+        }
+
+        .amount-col {
+            width: 140px;
+            text-align: right;
+        }
+
+        /* Rate Cell Button */
+        .rate-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .rate-button:hover {
+            background: #0056b3;
+        }
+
+        .rate-button:focus {
+            outline: 2px solid #0056b3;
+            outline-offset: 2px;
+        }
+
+        .rate-value {
+            background: #e7f3ff;
+            color: #0056b3;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 75vw;
+            height: 82vh;
+            max-height: 900px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-btn:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Builder Table */
+        .builder-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+
+        .builder-table thead {
+            background: #f8f9fa;
+        }
+
+        .builder-table th {
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .builder-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .builder-table input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .builder-table input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .section-label {
+            background: #e8f4f8;
+            font-weight: 600;
+            color: #004d7a;
+        }
+
+        .subtotal-row {
+            background: #f0f0f0;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .total-row {
+            background: #dfe9f3;
+            font-weight: 700;
+            color: #003d82;
+        }
+
+        .add-row-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin: 10px 0;
+        }
+
+        .add-row-btn:hover {
+            background: #218838;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        /* Controls Section */
+        .controls-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        .control-group input {
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        /* Number formatting */
+        .number {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .modal {
+                width: 85vw;
+                height: 85vh;
+            }
+
+            .controls-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .modal {
+                width: 95vw;
+                height: 90vh;
+            }
+
+            .table-wrapper {
+                font-size: 11px;
+            }
+
+            .controls-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Rate Analysis - Phase 2.1</h1>
+                <p>Karad Project | Tender: TNR-2025-0001</p>
+            </div>
+        </div>
+
+        <!-- Main Parsed BOQ Table -->
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sr-col">Sr. No.</th>
+                        <th class="desc-col">Description</th>
+                        <th class="unit-col">Unit</th>
+                        <th class="qty-col">Quantity</th>
+                        <th class="rate-col">Rate</th>
+                        <th class="amount-col">Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody id="boqTableBody">
+                    <tr>
+                        <td class="sr-col">1</td>
+                        <td class="desc-col">Excavation in trenches</td>
+                        <td class="unit-col">m³</td>
+                        <td class="qty-col">120</td>
+                        <td class="rate-col">
+                            <button class="rate-button" onclick="openRateBuilder(0)">Open Builder</button>
+                        </td>
+                        <td class="amount-col number">-</td>
+                    </tr>
+                    <tr>
+                        <td class="sr-col">2</td>
+                        <td class="desc-col">Concrete (M20)</td>
+                        <td class="unit-col">m³</td>
+                        <td class="qty-col">1,235</td>
+                        <td class="rate-col">
+                            <span class="rate-value">₹ 2,657</span>
+                        </td>
+                        <td class="amount-col number">₹ 32,81,395</td>
+                    </tr>
+                    <tr>
+                        <td class="sr-col">3</td>
+                        <td class="desc-col">Steel Reinforcement</td>
+                        <td class="unit-col">rmt</td>
+                        <td class="qty-col">1,456</td>
+                        <td class="rate-col">
+                            <button class="rate-button" onclick="openRateBuilder(2)">Open Builder</button>
+                        </td>
+                        <td class="amount-col number">-</td>
+                    </tr>
+                    <tr>
+                        <td class="sr-col">4</td>
+                        <td class="desc-col">Brick Masonry</td>
+                        <td class="unit-col">nos</td>
+                        <td class="qty-col">189</td>
+                        <td class="rate-col">
+                            <button class="rate-button" onclick="openRateBuilder(3)">Open Builder</button>
+                        </td>
+                        <td class="amount-col number">-</td>
+                    </tr>
+                    <tr>
+                        <td class="sr-col">5</td>
+                        <td class="desc-col">Plastering Work</td>
+                        <td class="unit-col">m²</td>
+                        <td class="qty-col">146</td>
+                        <td class="rate-col">
+                            <span class="rate-value">₹ 5,542</span>
+                        </td>
+                        <td class="amount-col number">₹ 8,09,132</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Rate Builder Modal -->
+    <div class="modal-overlay" id="rateBuilderModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Rate Builder - Item #1: Excavation in trenches (Unit: m³)</h2>
+                <button class="close-btn" onclick="closeRateBuilder()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Controls Section -->
+                <div class="controls-section">
+                    <div class="control-group">
+                        <label>Overhead (%)</label>
+                        <input type="number" id="ohPct" value="10" min="0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Profit (%)</label>
+                        <input type="number" id="profitPct" value="8" min="0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>GST (%)</label>
+                        <input type="number" id="gstPct" value="18" min="0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary" onclick="calculateAll()">Recalculate</button>
+                    </div>
+                </div>
+
+                <!-- Builder Table -->
+                <div class="table-wrapper">
+                    <table class="builder-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Item Name</th>
+                                <th style="width: 15%;">Qty</th>
+                                <th style="width: 15%;">Rate (per unit)</th>
+                                <th style="width: 20%;">Amount</th>
+                                <th style="width: 10%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="builderTableBody">
+                            <!-- Materials Section -->
+                            <tr class="section-label">
+                                <td colspan="5">📦 MATERIALS</td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" placeholder="e.g., Cement" value="Cement"></td>
+                                <td class="number"><input type="number" placeholder="Qty" value="2.5" step="0.01"></td>
+                                <td class="number"><input type="number" placeholder="Rate" value="400" step="0.01"></td>
+                                <td class="number">1,000</td>
+                                <td><button class="delete-btn">Del</button></td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" placeholder="e.g., Sand" value="Sand"></td>
+                                <td class="number"><input type="number" placeholder="Qty" value="1.5" step="0.01"></td>
+                                <td class="number"><input type="number" placeholder="Rate" value="350" step="0.01"></td>
+                                <td class="number">525</td>
+                                <td><button class="delete-btn">Del</button></td>
+                            </tr>
+                            <tr>
+                                <td><button class="add-row-btn">+ Add Material</button></td>
+                                <td colspan="4"></td>
+                            </tr>
+                            <tr class="subtotal-row">
+                                <td colspan="3">Materials Subtotal</td>
+                                <td class="number">1,525</td>
+                                <td></td>
+                            </tr>
+
+                            <!-- Labour Section -->
+                            <tr class="section-label">
+                                <td colspan="5">👷 LABOUR</td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" placeholder="e.g., Skilled Labour" value="Skilled Labour"></td>
+                                <td class="number"><input type="number" placeholder="Days" value="2" step="0.01"></td>
+                                <td class="number"><input type="number" placeholder="Rate" value="500" step="0.01"></td>
+                                <td class="number">1,000</td>
+                                <td><button class="delete-btn">Del</button></td>
+                            </tr>
+                            <tr>
+                                <td><button class="add-row-btn">+ Add Labour</button></td>
+                                <td colspan="4"></td>
+                            </tr>
+                            <tr class="subtotal-row">
+                                <td colspan="3">Labour Subtotal</td>
+                                <td class="number">1,000</td>
+                                <td></td>
+                            </tr>
+
+                            <!-- Equipment Section -->
+                            <tr class="section-label">
+                                <td colspan="5">🏗️ EQUIPMENT</td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" placeholder="e.g., Excavator" value="Excavator"></td>
+                                <td class="number"><input type="number" placeholder="Hours" value="4" step="0.01"></td>
+                                <td class="number"><input type="number" placeholder="Rate" value="300" step="0.01"></td>
+                                <td class="number">1,200</td>
+                                <td><button class="delete-btn">Del</button></td>
+                            </tr>
+                            <tr>
+                                <td><button class="add-row-btn">+ Add Equipment</button></td>
+                                <td colspan="4"></td>
+                            </tr>
+                            <tr class="subtotal-row">
+                                <td colspan="3">Equipment Subtotal</td>
+                                <td class="number">1,200</td>
+                                <td></td>
+                            </tr>
+
+                            <!-- Summary Rows -->
+                            <tr class="subtotal-row">
+                                <td colspan="3">Sub-total (Materials + Labour + Equipment)</td>
+                                <td class="number">3,725</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">Overheads (10%)</td>
+                                <td class="number">372.50</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">Profit (8%)</td>
+                                <td class="number">298.00</td>
+                                <td></td>
+                            </tr>
+                            <tr class="subtotal-row">
+                                <td colspan="3">Sub-total + OH + Profit</td>
+                                <td class="number">4,395.50</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">GST (18%)</td>
+                                <td class="number">791.19</td>
+                                <td></td>
+                            </tr>
+                            <tr class="total-row">
+                                <td colspan="3">Unit Rate (Final)</td>
+                                <td class="number">5,186.69</td>
+                                <td></td>
+                            </tr>
+                            <tr class="total-row">
+                                <td colspan="3">Amount (Qty 120 × Unit Rate)</td>
+                                <td class="number">₹ 6,22,403</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRateBuilder()">Close</button>
+                <button class="btn btn-primary" onclick="saveRevision()">Save Revision</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openRateBuilder(itemIndex) {
+            document.getElementById('rateBuilderModal').classList.add('active');
+        }
+
+        function closeRateBuilder() {
+            document.getElementById('rateBuilderModal').classList.remove('active');
+        }
+
+        function calculateAll() {
+            console.log('Recalculating with updated OH, Profit, GST percentages');
+            // In real implementation, recalculate all subtotals and totals
+        }
+
+        function saveRevision() {
+            console.log('Saving revision R1 with updated rate and breakdown');
+            alert('Revision saved! (This is a prototype - actual save would persist to database)');
+            closeRateBuilder();
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeRateBuilder();
+            }
+        });
+
+        // Calculate totals on input change
+        document.addEventListener('change', function(e) {
+            if (e.target.matches('input[type="number"]')) {
+                // Trigger live calculation
+                calculateAll();
+            }
+        });
+    </script>
+</body>
+</html>

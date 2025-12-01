@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User profile files (avatars, personal documents)
+    match /profiles/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Tender-related documents
+    match /tenders/{tenderId}/{allPaths=**} {
+      // Read if user is member of tender or admin
+      allow read: if request.auth != null;
+      
+      // Write if user is member with appropriate role
+      allow write: if request.auth != null;
+      
+      // Delete only for admins
+      allow delete: if request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // BOQ files for rate analysis
+    match /boq/{tenderId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Temporary uploads folder
+    match /temp/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Catch-all deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

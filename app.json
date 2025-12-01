@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "My App",
+    "slug": "myapp",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTabletMode": true,
+      "supportsMultitasking": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.example.myapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "build": {
+        "devtool": false
+      }
+    },
+    "scheme": "myapp"
+  }
+}

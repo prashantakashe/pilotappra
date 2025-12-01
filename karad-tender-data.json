@@ -1,0 +1,37 @@
+{
+  "tenderNo": "TNR-2025-0001",
+  "title": "Karad Project",
+  "shortName": "Karad",
+  "workType": "Sports",
+  "tenderSource": "GEM",
+  "estimatedValue": 78000000,
+  "currency": "INR",
+  "description": "Sports facility project in Karad",
+  "client": "Municipal Corporation Karad",
+  "department": "Sports & Youth Affairs",
+  "tenderUID": "KARAD-SPORTS-2025",
+  "country": "India",
+  "state": "Maharashtra",
+  "city": "Karad",
+  "siteAddress": "Karad, Maharashtra",
+  "publishDate": "2025-11-10T00:00:00.000Z",
+  "submissionDeadline": "2025-11-25T23:59:59.000Z",
+  "reminderEnabled": true,
+  "reminderLeadDays": 3,
+  "boqItemCount": 0,
+  "tenderValue": 78000000,
+  "tenderManager": "Prashant",
+  "status": "active",
+  "submissionMode": "Online",
+  "internalNotes": "Test tender created for Karad Sports Project",
+  "membersMap": {
+    "Kj1BfsYJ8tf6TnyA0tXNA9RhXb02": "owner"
+  },
+  "rateAnalysisAllowedRoles": ["estimator", "owner"],
+  "createdBy": "Kj1BfsYJ8tf6TnyA0tXNA9RhXb02",
+  "tenderProgressPercent": 0,
+  "documentProgressSummary": {
+    "mandatoryCompleted": 0,
+    "mandatoryTotal": 0
+  }
+}

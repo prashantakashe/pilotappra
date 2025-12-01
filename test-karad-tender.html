@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Tender Creation - Karad Project</title>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyA7YoZo9xtZiGdkHWjMvAiAYNoSRlD7avE',
+      authDomain: 'app-pilot-60ce3.firebaseapp.com',
+      projectId: 'app-pilot-60ce3',
+      storageBucket: 'app-pilot-60ce3.firebasestorage.app',
+      messagingSenderId: '638337969804',
+      appId: '1:638337969804:web:5fcb8ac58acd44221455a9',
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const functions = getFunctions(app);
+
+    window.testKaradTender = async function() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const outputEl = document.getElementById('output');
+      
+      try {
+        outputEl.innerHTML = '🔐 Authenticating...<br>';
+        
+        await signInWithEmailAndPassword(auth, email, password);
+        outputEl.innerHTML += `✅ Authenticated as: ${auth.currentUser.email}<br><br>`;
+        
+        outputEl.innerHTML += '📝 Creating Karad Project tender...<br>';
+        
+        const tenderData = {
+          title: 'Karad Project',
+          shortName: 'Karad',
+          workType: 'Sports',
+          tenderSource: 'GEM',
+          tenderSourceOther: '',
+          estimatedValue: '78000000',
+          currency: 'INR',
+          description: 'Sports facility project in Karad',
+          
+          client: 'Municipal Corporation Karad',
+          department: 'Sports & Youth Affairs',
+          tenderUID: 'KARAD-SPORTS-2025',
+          externalLink: '',
+          
+          country: 'India',
+          state: 'Maharashtra',
+          city: 'Karad',
+          siteAddress: 'Karad, Maharashtra',
+          prebidMeetingAddress: '',
+          
+          publishDate: '2025-11-10T00:00:00.000Z',
+          prebidMeetingDate: null,
+          queryDeadline: null,
+          documentPurchaseDeadline: null,
+          submissionDeadline: '2025-11-25T23:59:59.000Z',
+          technicalOpeningDate: null,
+          financialOpeningDate: null,
+          reminderEnabled: true,
+          reminderLeadDays: 3,
+          
+          boqFileUrl: '',
+          boqItemCount: 0,
+          tenderValue: '78000000',
+          paymentTerms: '',
+          
+          tenderManager: 'Prashant',
+          engineeringLead: '',
+          estimationEngineer: '',
+          documentController: '',
+          additionalMembers: [],
+          
+          status: 'active',
+          submissionMode: 'Online',
+          internalNotes: 'Test tender created via direct script',
+          emdAmount: '',
+          
+          prebidQueryInstructions: '',
+          extraReminders: '',
+          bidProbabilityScore: null,
+          
+          draftId: 'test-draft-' + Date.now(),
+          documents: []
+        };
+
+        outputEl.innerHTML += '🚀 Calling Cloud Function...<br>';
+        
+        const finalizeTenderCreate = httpsCallable(functions, 'finalizeTenderCreate');
+        const result = await finalizeTenderCreate(tenderData);
+        
+        outputEl.innerHTML += '<br><strong>✅ SUCCESS!</strong><br>';
+        outputEl.innerHTML += `Tender ID: ${result.data.tenderId}<br>`;
+        outputEl.innerHTML += `Tender No: ${result.data.tenderNo}<br>`;
+        outputEl.innerHTML += `<br>🎉 Tender created successfully!<br>`;
+        outputEl.innerHTML += `📱 You can now view it in the Tender Main Screen<br>`;
+        outputEl.style.color = 'green';
+        
+      } catch (error) {
+        outputEl.innerHTML += `<br><strong>❌ ERROR:</strong><br>`;
+        outputEl.innerHTML += `Code: ${error.code || 'unknown'}<br>`;
+        outputEl.innerHTML += `Message: ${error.message}<br>`;
+        console.error('Full error:', error);
+        outputEl.style.color = 'red';
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .tender-info {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #2196F3;
+    }
+    .tender-info h3 {
+      margin-top: 0;
+      color: #1976D2;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button {
+      background: #2196F3;
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #1976D2;
+    }
+    #output {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+      font-family: monospace;
+      min-height: 50px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏗️ Test Tender Creation</h1>
+    <p>This will create the Karad Project tender in your Firebase database.</p>
+    
+    <div class="tender-info">
+      <h3>Tender Details:</h3>
+      <ul>
+        <li><strong>Title:</strong> Karad Project</li>
+        <li><strong>Short Name:</strong> Karad</li>
+        <li><strong>Work Type:</strong> Sports</li>
+        <li><strong>Source:</strong> GEM</li>
+        <li><strong>Value:</strong> ₹7.80 Crores (₹78,000,000)</li>
+        <li><strong>Publish Date:</strong> 10/11/2025</li>
+        <li><strong>Deadline:</strong> 25/11/2025</li>
+        <li><strong>Manager:</strong> Prashant</li>
+      </ul>
+    </div>
+
+    <h3>Enter your credentials:</h3>
+    <input type="email" id="email" placeholder="Email (e.g., aaa@gmail.com)" value="aaa@gmail.com">
+    <input type="password" id="password" placeholder="Password">
+    
+    <button onclick="testKaradTender()">🚀 Create Tender</button>
+    
+    <div id="output"></div>
+  </div>
+</body>
+</html>
