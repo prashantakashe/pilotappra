@@ -25,31 +25,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build web app
-      run: npx expo export --platform web
-      env:
-        EXPO_NO_DOTENV: 1
-        CI: true
-    
-    - name: Add .nojekyll file
-      run: touch dist/.nojekyll
-    
     - name: Setup Pages
       uses: actions/configure-pages@v4
     
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: './dist'
+        path: './web-build'
     
     - name: Deploy to GitHub Pages
       id: deployment
