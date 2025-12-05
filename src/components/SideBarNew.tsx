@@ -9,6 +9,7 @@ import {
   Modal,
   Animated,
   Pressable,
+  Platform,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -79,21 +80,144 @@ const SideBarNew: React.FC<SideBarNewProps> = ({
     <View style={[styles.sidebar, { width: sidebarWidth }]}>
       {/* Collapse Toggle for Desktop */}
       {isDesktop && onToggleCollapse && (
-        <TouchableOpacity
-          style={styles.collapseButton}
-          onPress={onToggleCollapse}
-          accessibilityLabel={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          accessibilityRole="button"
-        >
-          <Text style={styles.collapseIcon}>{collapsed ? '»' : '«'}</Text>
-        </TouchableOpacity>
+        Platform.OS === 'web' ? (
+          <button
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '-12px',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: '#fff',
+              border: '1px solid #E5E7EB',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              color: '#6B7280',
+              zIndex: 10,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onClick={onToggleCollapse}
+            onMouseEnter={(e) => {
+              // Show custom tooltip
+              const tooltip = document.createElement('div');
+              tooltip.className = 'sidebar-tooltip';
+              tooltip.textContent = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+              const rect = e.currentTarget.getBoundingClientRect();
+              tooltip.style.cssText = `
+                position: fixed;
+                left: ${rect.right + 8}px;
+                top: ${rect.top + (rect.height / 2) - 12}px;
+                background-color: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 500;
+                white-space: nowrap;
+                z-index: 10000;
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+              `;
+              document.body.appendChild(tooltip);
+            }}
+            onMouseLeave={() => {
+              // Remove custom tooltip
+              const tooltips = document.querySelectorAll('.sidebar-tooltip');
+              tooltips.forEach(t => t.remove());
+            }}
+          >
+            {collapsed ? '»' : '«'}
+          </button>
+        ) : (
+          <TouchableOpacity
+            style={styles.collapseButton}
+            onPress={onToggleCollapse}
+            accessibilityLabel={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            accessibilityRole="button"
+          >
+            <Text style={styles.collapseIcon}>{collapsed ? '»' : '«'}</Text>
+          </TouchableOpacity>
+        )
       )}
 
       <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false}>
         {/* Menu Items */}
         {items.map((item) => {
           const isActive = activeRoute === item.key;
-          return (
+          return Platform.OS === 'web' ? (
+            <button
+              key={item.key}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: collapsed ? '12px' : '12px 16px',
+                backgroundColor: isActive ? '#EFF6FF' : 'transparent',
+                border: 'none',
+                borderLeft: isActive ? '3px solid #2563EB' : '3px solid transparent',
+                borderRadius: '8px',
+                marginBottom: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                width: '100%',
+                textAlign: 'left',
+                position: 'relative',
+                overflow: 'visible'
+              }}
+              onClick={() => handleNavigate(item.key)}
+              data-tooltip={item.label}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = '#F3F4F6';
+                }
+                // Show custom tooltip - always show to prevent cutoff
+                const tooltip = document.createElement('div');
+                tooltip.className = 'sidebar-tooltip';
+                tooltip.textContent = item.label;
+                const rect = e.currentTarget.getBoundingClientRect();
+                tooltip.style.cssText = `
+                  position: fixed;
+                  left: ${collapsed ? 72 : rect.right + 5}px;
+                  top: ${rect.top + (rect.height / 2) - 12}px;
+                  background-color: rgba(0, 0, 0, 0.9);
+                  color: white;
+                  padding: 6px 12px;
+                  border-radius: 6px;
+                  font-size: 13px;
+                  font-weight: 500;
+                  white-space: nowrap;
+                  z-index: 10000;
+                  pointer-events: none;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                `;
+                document.body.appendChild(tooltip);
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+                // Remove custom tooltip
+                const tooltips = document.querySelectorAll('.sidebar-tooltip');
+                tooltips.forEach(t => t.remove());
+              }}
+            >
+              <span style={{ fontSize: '20px', marginRight: collapsed ? '0' : '12px' }}>
+                {item.icon}
+              </span>
+              {!collapsed && (
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: isActive ? '600' : '400',
+                  color: isActive ? '#2563EB' : '#374151'
+                }}>
+                  {item.label}
+                </span>
+              )}
+            </button>
+          ) : (
             <TouchableOpacity
               key={item.key}
               style={[
@@ -118,16 +242,74 @@ const SideBarNew: React.FC<SideBarNewProps> = ({
         })}
 
         {/* Logout */}
-        <TouchableOpacity
-          style={[styles.logoutItem, collapsed && styles.menuItemCollapsed]}
-          onPress={handleLogout}
-          accessibilityLabel="Logout"
-          accessibilityHint="Sign out of your account"
-          accessibilityRole="button"
-        >
-          <Text style={styles.logoutIcon}>🚪</Text>
-          {!collapsed && <Text style={styles.logoutLabel}>Logout</Text>}
-        </TouchableOpacity>
+        {Platform.OS === 'web' ? (
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: collapsed ? '12px' : '12px 16px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              marginTop: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              width: '100%',
+              textAlign: 'left'
+            }}
+            onClick={handleLogout}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#FEE2E2';
+              // Show custom tooltip
+              const tooltip = document.createElement('div');
+              tooltip.className = 'sidebar-tooltip';
+              tooltip.textContent = 'Logout';
+              const rect = e.currentTarget.getBoundingClientRect();
+              tooltip.style.cssText = `
+                position: fixed;
+                left: ${collapsed ? 72 : rect.right + 5}px;
+                top: ${rect.top + (rect.height / 2) - 12}px;
+                background-color: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 500;
+                white-space: nowrap;
+                z-index: 10000;
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+              `;
+              document.body.appendChild(tooltip);
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              // Remove custom tooltip
+              const tooltips = document.querySelectorAll('.sidebar-tooltip');
+              tooltips.forEach(t => t.remove());
+            }}
+          >
+            <span style={{ fontSize: '20px', marginRight: collapsed ? '0' : '12px' }}>
+              🚺
+            </span>
+            {!collapsed && (
+              <span style={{ fontSize: '14px', fontWeight: '400', color: '#DC2626' }}>
+                Logout
+              </span>
+            )}
+          </button>
+        ) : (
+          <TouchableOpacity
+            style={[styles.logoutItem, collapsed && styles.menuItemCollapsed]}
+            onPress={handleLogout}
+            accessibilityLabel="Logout"
+            accessibilityHint="Sign out of your account"
+            accessibilityRole="button"
+          >
+            <Text style={styles.logoutIcon}>🚺</Text>
+            {!collapsed && <Text style={styles.logoutLabel}>Logout</Text>}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );

@@ -55,10 +55,12 @@ export const PROJECTS_NAV: MenuItem[] = [
 
 // Daily Work Status module sub-navigation
 export const DAILY_WORK_STATUS_NAV: MenuItem[] = [
-  { key: 'DWSMaster', label: 'Master Data', icon: '📁' },
-  { key: 'DWSDaily', label: 'Daily Entry', icon: '📝' },
-  { key: 'DWSReport', label: 'Report', icon: '📊' },
   { key: 'DWSDashboard', label: 'Dashboard', icon: '📈' },
+  { key: 'DWSDaily', label: 'Daily Entry', icon: '📝' },
+  { key: 'DWSMaster', label: 'Master Data', icon: '📁' },
+  { key: 'DWSReport', label: 'Report', icon: '📊' },
+  { key: 'DWSReminders', label: 'Reminder Settings', icon: '🔔' },
   { key: 'DWSUsers', label: 'User Management', icon: '👥' },
   { key: 'Dashboard', label: '← Back to Main', icon: '🏠' },
 ];
+

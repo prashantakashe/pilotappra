@@ -28,6 +28,7 @@ import * as XLSX from 'xlsx';
 
 export interface StandardBOQRow {
   srNo: string;
+  itemNo: string | null; // Original item number from BOQ
   parentSr: string | null;
   category: string | null;
   subCategory: string | null;
@@ -389,6 +390,62 @@ function isRemarkRow(desc: string, remarks: string): boolean {
  * Detect lump-sum items
  * Covers Scenario 11
  */
+/**
+ * Normalize unit to standard format
+ * Handles variations like Each, Nos, No, per
+ */
+function normalizeUnit(unit: string | null): string | null {
+  if (!unit) return null;
+  
+  const unitLower = unit.toLowerCase().trim();
+  
+  // Map variations to standard units
+  const unitMappings: Record<string, string> = {
+    'each': 'nos',
+    'no': 'nos',
+    'no.': 'nos',
+    'number': 'nos',
+    'numbers': 'nos',
+    'per': 'nos',
+    'pcs': 'nos',
+    'piece': 'nos',
+    'pieces': 'nos',
+    'job': 'job',
+    'pair': 'pair',
+    'pairs': 'pair',
+    'sqm': 'm2',
+    'sq.m': 'm2',
+    'sq m': 'm2',
+    'square meter': 'm2',
+    'square metre': 'm2',
+    'cum': 'm3',
+    'cu.m': 'm3',
+    'cu m': 'm3',
+    'cubic meter': 'm3',
+    'cubic metre': 'm3',
+    'rmt': 'rmt',
+    'running meter': 'rmt',
+    'running metre': 'rmt',
+    'rm': 'rmt',
+    'kg': 'kg',
+    'kilogram': 'kg',
+    'tonne': 'MT',
+    'ton': 'MT',
+    'mt': 'MT',
+    'metric ton': 'MT',
+    'metric tonne': 'MT',
+    'litre': 'ltr',
+    'liter': 'ltr',
+    'l': 'ltr',
+    'per month': 'Per Month',
+    'per/month': 'Per Month',
+    'p.m': 'Per Month',
+    'pm': 'Per Month'
+  };
+  
+  return unitMappings[unitLower] || unit;
+}
+
 function isLumpSum(unit: string | null, qty: number | null, amount: number | null): boolean {
   if (!amount || amount === 0) return false;
   if (!unit || unit.toLowerCase() === 'ls' || unit.toLowerCase() === 'lump sum') return true;
@@ -615,6 +672,7 @@ function parseDataRows(
 
       result.push({
         srNo: '',
+        itemNo: null,
         parentSr: null,
         category: desc,
         subCategory: null,
@@ -643,6 +701,7 @@ function parseDataRows(
 
       result.push({
         srNo: '',
+        itemNo: null,
         parentSr: null,
         category: currentCategory,
         subCategory: currentSubCategory,
@@ -669,6 +728,7 @@ function parseDataRows(
     if (isRemarkRow(desc, remarksStr)) {
       result.push({
         srNo: '',
+        itemNo: null,
         parentSr: null,
         category: currentCategory,
         subCategory: currentSubCategory,
@@ -709,14 +769,16 @@ function parseDataRows(
       const altMatch = detectAlternativeGroup(srNo);
       const itemCode = detectItemCode(desc, codeStr);
       const isLump = isLumpSum(detectedUnit, finalQty, finalAmount);
+      const normalizedUnit = normalizeUnit(detectedUnit);
 
       const parsedRow: StandardBOQRow = {
         srNo,
+        itemNo: srNo, // Preserve original item number
         parentSr: null,
         category: currentCategory,
         subCategory: currentSubCategory,
         description: desc || '', // Ensure it's always a string
-        unit: detectedUnit,
+        unit: normalizedUnit,
         quantity: finalQty,
         tenderRate: finalRate,
         tenderAmount: finalAmount,
@@ -747,11 +809,12 @@ function parseDataRows(
 
         result.push({
           srNo: '',
+          itemNo: null,
           parentSr: lastMainItem.srNo,
           category: currentCategory,
           subCategory: currentSubCategory,
           description: desc,
-          unit: detectedUnit,
+          unit: normalizeUnit(detectedUnit),
           quantity: finalQty,
           tenderRate: finalRate,
           tenderAmount: finalAmount,
@@ -775,11 +838,12 @@ function parseDataRows(
       console.log(`[parseDataRows] Fallback: Creating row for srNo="${srNo}" desc="${desc}"`);
       result.push({
         srNo: srNo || '',
+        itemNo: srNo || null,
         parentSr: null,
         category: currentCategory,
         subCategory: currentSubCategory,
         description: desc || '',
-        unit: detectedUnit,
+        unit: normalizeUnit(detectedUnit),
         quantity: qty,
         tenderRate: rate,
         tenderAmount: amount,

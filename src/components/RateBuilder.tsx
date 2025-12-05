@@ -461,10 +461,9 @@ export const RateBuilder: React.FC<RateBuilderProps> = ({
             {/* Main Content Area - Two Column Layout */}
             <View style={styles.contentArea}>
               {/* Left: Builder Table */}
-              <ScrollView style={styles.tableWrapper}>
-                <View style={styles.builderTable}>
-                {/* Table Header */}
-                <View style={[styles.tableRow, styles.headerRow]}>
+              <View style={styles.tableWrapper}>
+                {/* Sticky Table Header */}
+                <View style={[styles.tableRow, styles.headerRow, styles.stickyHeader]}>
                   <View style={styles.nameCell}>
                     <Text style={styles.headerCell}>Item Name</Text>
                   </View>
@@ -481,17 +480,21 @@ export const RateBuilder: React.FC<RateBuilderProps> = ({
                     <Text style={[styles.headerCell, { fontSize: 10 }]}>Actions</Text>
                   </View>
                 </View>
+                
+                {/* Scrollable Content */}
+                <ScrollView style={styles.tableScrollView}>
+                  <View style={styles.builderTable}>
+                    {/* Materials Section */}
+                    <SectionComponent title="MATERIALS" rows={materials} section="materials" />
 
-                {/* Materials Section */}
-                <SectionComponent title="MATERIALS" rows={materials} section="materials" />
+                    {/* Labour Section */}
+                    <SectionComponent title="LABOUR" rows={labour} section="labour" />
 
-                {/* Labour Section */}
-                <SectionComponent title="LABOUR" rows={labour} section="labour" />
-
-                {/* Equipment Section */}
-                <SectionComponent title="EQUIPMENT" rows={equipment} section="equipment" />
+                    {/* Equipment Section */}
+                    <SectionComponent title="EQUIPMENT" rows={equipment} section="equipment" />
+                  </View>
+                </ScrollView>
               </View>
-            </ScrollView>
 
             {/* Right: Summary Panel */}
             <View style={styles.summaryPanel}>
@@ -736,6 +739,30 @@ const styles = StyleSheet.create({
   tableWrapper: {
     flex: 2,
     maxHeight: '100%',
+    backgroundColor: '#fff',
+  },
+
+  tableScrollView: {
+    flex: 1,
+  },
+
+  stickyHeader: {
+    position: Platform.OS === 'web' ? 'sticky' as any : 'relative',
+    top: 0,
+    zIndex: 10,
+    backgroundColor: '#f8f9fa',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      },
+      default: {
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      }
+    }),
   },
 
   summaryPanel: {

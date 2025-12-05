@@ -56,8 +56,54 @@ export const DWSMasterDataTab: React.FC = () => {
   // Personnel state
   const [personnel, setPersonnel] = useState<DWSPersonnel[]>([]);
   const [newPersonName, setNewPersonName] = useState('');
+  const [newPersonEmail, setNewPersonEmail] = useState('');
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [editingPersonName, setEditingPersonName] = useState('');
+  const [editingPersonEmail, setEditingPersonEmail] = useState('');
+
+  // Inject tooltip CSS for web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        [title] {
+          position: relative;
+          cursor: pointer;
+        }
+        [title]:hover::after {
+          content: attr(title);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.85);
+          color: white;
+          padding: 6px 10px;
+          border-radius: 4px;
+          white-space: nowrap;
+          font-size: 12px;
+          z-index: 10000;
+          pointer-events: none;
+          margin-bottom: 5px;
+        }
+        [title]:hover::before {
+          content: '';
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: rgba(0, 0, 0, 0.85);
+          z-index: 10000;
+          pointer-events: none;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, []);
   
   // Statuses state
   const [statuses, setStatuses] = useState<DWSStatus[]>([]);
@@ -141,25 +187,38 @@ export const DWSMasterDataTab: React.FC = () => {
   };
   
   const handleDeleteProject = async (id: string) => {
-    Alert.alert(
-      'Delete Project',
-      'Are you sure you want to delete this project?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteProject(id);
-              Alert.alert('Success', 'Project deleted');
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
+    // Use window.confirm for web, Alert.alert for native
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this project?');
+      if (!confirmed) return;
+      
+      try {
+        await deleteProject(id);
+        window.alert('Project deleted successfully');
+      } catch (error: any) {
+        window.alert('Error: ' + error.message);
+      }
+    } else {
+      Alert.alert(
+        'Delete Project',
+        'Are you sure you want to delete this project?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteProject(id);
+                Alert.alert('Success', 'Project deleted');
+              } catch (error: any) {
+                Alert.alert('Error', error.message);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
   
   const handleCancelEditProject = () => {
@@ -176,8 +235,12 @@ export const DWSMasterDataTab: React.FC = () => {
     }
     
     try {
-      await addPersonnel({ name: newPersonName.trim() });
+      await addPersonnel({ 
+        name: newPersonName.trim(),
+        email: newPersonEmail.trim() || undefined
+      });
       setNewPersonName('');
+      setNewPersonEmail('');
       Alert.alert('Success', 'Person added successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -191,9 +254,13 @@ export const DWSMasterDataTab: React.FC = () => {
     }
     
     try {
-      await updatePersonnel(id, { name: editingPersonName.trim() });
+      await updatePersonnel(id, { 
+        name: editingPersonName.trim(),
+        email: editingPersonEmail.trim() || undefined
+      });
       setEditingPersonId(null);
       setEditingPersonName('');
+      setEditingPersonEmail('');
       Alert.alert('Success', 'Person updated successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -201,25 +268,38 @@ export const DWSMasterDataTab: React.FC = () => {
   };
   
   const handleDeletePerson = async (id: string) => {
-    Alert.alert(
-      'Delete Person',
-      'Are you sure you want to delete this person?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePersonnel(id);
-              Alert.alert('Success', 'Person deleted');
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
+    // Use window.confirm for web, Alert.alert for native
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this person?');
+      if (!confirmed) return;
+      
+      try {
+        await deletePersonnel(id);
+        window.alert('Person deleted successfully');
+      } catch (error: any) {
+        window.alert('Error: ' + error.message);
+      }
+    } else {
+      Alert.alert(
+        'Delete Person',
+        'Are you sure you want to delete this person?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deletePersonnel(id);
+                Alert.alert('Success', 'Person deleted');
+              } catch (error: any) {
+                Alert.alert('Error', error.message);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   // ==================== Statuses ====================
@@ -284,6 +364,7 @@ export const DWSMasterDataTab: React.FC = () => {
       <TouchableOpacity
         style={[styles.subTab, activeSubTab === 'projects' && styles.subTabActive]}
         onPress={() => setActiveSubTab('projects')}
+        {...(Platform.OS === 'web' && { title: 'Manage Projects' })}
       >
         <Text style={[styles.subTabText, activeSubTab === 'projects' && styles.subTabTextActive]}>
           Manage Projects
@@ -292,6 +373,7 @@ export const DWSMasterDataTab: React.FC = () => {
       <TouchableOpacity
         style={[styles.subTab, activeSubTab === 'personnel' && styles.subTabActive]}
         onPress={() => setActiveSubTab('personnel')}
+        {...(Platform.OS === 'web' && { title: 'Manage Personnel' })}
       >
         <Text style={[styles.subTabText, activeSubTab === 'personnel' && styles.subTabTextActive]}>
           Assigned Personnel
@@ -300,6 +382,7 @@ export const DWSMasterDataTab: React.FC = () => {
       <TouchableOpacity
         style={[styles.subTab, activeSubTab === 'statuses' && styles.subTabActive]}
         onPress={() => setActiveSubTab('statuses')}
+        {...(Platform.OS === 'web' && { title: 'Manage Statuses' })}
       >
         <Text style={[styles.subTabText, activeSubTab === 'statuses' && styles.subTabTextActive]}>
           Final Status
@@ -414,11 +497,19 @@ export const DWSMasterDataTab: React.FC = () => {
         </View>
         
         <View style={styles.formActions}>
-          <TouchableOpacity style={styles.btnSuccess} onPress={handleAddProject}>
+          <TouchableOpacity 
+            style={styles.btnSuccess} 
+            onPress={handleAddProject}
+            {...(Platform.OS === 'web' && { title: editingProjectId ? 'Update Project' : 'Add New Project' })}
+          >
             <Text style={styles.btnText}>{editingProjectId ? 'Update Project' : 'Add Project'}</Text>
           </TouchableOpacity>
           {editingProjectId && (
-            <TouchableOpacity style={styles.btnCancel} onPress={handleCancelEditProject}>
+            <TouchableOpacity 
+              style={styles.btnCancel} 
+              onPress={handleCancelEditProject}
+              {...(Platform.OS === 'web' && { title: 'Cancel Editing' })}
+            >
               <Text style={styles.btnCancelText}>Cancel</Text>
             </TouchableOpacity>
           )}
@@ -447,10 +538,18 @@ export const DWSMasterDataTab: React.FC = () => {
                 <Text style={[styles.tableCell, { width: 180 }]}>{project.timeline || '-'}</Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>{project.category || '-'}</Text>
                 <View style={[styles.tableCell, styles.actionsCell, { width: 120 }]}>
-                  <TouchableOpacity style={styles.btnEdit} onPress={() => handleEditProject(project)}>
+                  <TouchableOpacity 
+                    style={styles.btnEdit} 
+                    onPress={() => handleEditProject(project)}
+                    {...(Platform.OS === 'web' && { title: 'Edit Project' })}
+                  >
                     <Text style={styles.btnSmText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnDelete} onPress={() => handleDeleteProject(project.id)}>
+                  <TouchableOpacity 
+                    style={styles.btnDelete} 
+                    onPress={() => handleDeleteProject(project.id)}
+                    {...(Platform.OS === 'web' && { title: 'Delete Project' })}
+                  >
                     <Text style={styles.btnSmText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
@@ -479,7 +578,19 @@ export const DWSMasterDataTab: React.FC = () => {
           value={newPersonName}
           onChangeText={setNewPersonName}
         />
-        <TouchableOpacity style={styles.btnSuccess} onPress={handleAddPerson}>
+        <TextInput
+          style={[styles.input, { flex: 1, marginLeft: 8 }]}
+          placeholder="Enter email (optional)"
+          value={newPersonEmail}
+          onChangeText={setNewPersonEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TouchableOpacity 
+          style={styles.btnSuccess} 
+          onPress={handleAddPerson}
+          {...(Platform.OS === 'web' && { title: 'Add New Person' })}
+        >
           <Text style={styles.btnText}>Add Person</Text>
         </TouchableOpacity>
       </View>
@@ -488,27 +599,49 @@ export const DWSMasterDataTab: React.FC = () => {
       <View style={styles.tableContainer}>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Name</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Email</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Actions</Text>
         </View>
         {personnel.map((person) => (
           <View key={person.id} style={styles.tableRow}>
             {editingPersonId === person.id ? (
-              <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                value={editingPersonName}
-                onChangeText={setEditingPersonName}
-                autoFocus
-              />
+              <>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginRight: 8 }]}
+                  value={editingPersonName}
+                  onChangeText={setEditingPersonName}
+                  autoFocus
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1.5, marginRight: 8 }]}
+                  value={editingPersonEmail}
+                  onChangeText={setEditingPersonEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholder="Enter email"
+                />
+              </>
             ) : (
-              <Text style={[styles.tableCell, { flex: 1 }]}>{person.name}</Text>
+              <>
+                <Text style={[styles.tableCell, { flex: 1 }]}>{person.name}</Text>
+                <Text style={[styles.tableCell, { flex: 1.5 }]}>{person.email || '-'}</Text>
+              </>
             )}
             <View style={[styles.tableCell, styles.actionsCell, { width: 150 }]}>
               {editingPersonId === person.id ? (
                 <>
-                  <TouchableOpacity style={styles.btnEdit} onPress={() => handleUpdatePerson(person.id)}>
+                  <TouchableOpacity 
+                    style={styles.btnEdit} 
+                    onPress={() => handleUpdatePerson(person.id)}
+                    {...(Platform.OS === 'web' && { title: 'Save Changes' })}
+                  >
                     <Text style={styles.btnSmText}>Save</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnCancel} onPress={() => setEditingPersonId(null)}>
+                  <TouchableOpacity 
+                    style={styles.btnCancel} 
+                    onPress={() => setEditingPersonId(null)}
+                    {...(Platform.OS === 'web' && { title: 'Cancel Editing' })}
+                  >
                     <Text style={styles.btnSmText}>Cancel</Text>
                   </TouchableOpacity>
                 </>
@@ -519,11 +652,17 @@ export const DWSMasterDataTab: React.FC = () => {
                     onPress={() => {
                       setEditingPersonId(person.id);
                       setEditingPersonName(person.name);
+                      setEditingPersonEmail(person.email || '');
                     }}
+                    {...(Platform.OS === 'web' && { title: 'Edit Person' })}
                   >
                     <Text style={styles.btnSmText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnDelete} onPress={() => handleDeletePerson(person.id)}>
+                  <TouchableOpacity 
+                    style={styles.btnDelete} 
+                    onPress={() => handleDeletePerson(person.id)}
+                    {...(Platform.OS === 'web' && { title: 'Delete Person' })}
+                  >
                     <Text style={styles.btnSmText}>Delete</Text>
                   </TouchableOpacity>
                 </>
@@ -552,7 +691,11 @@ export const DWSMasterDataTab: React.FC = () => {
           value={newStatusName}
           onChangeText={setNewStatusName}
         />
-        <TouchableOpacity style={styles.btnSuccess} onPress={handleAddStatus}>
+        <TouchableOpacity 
+          style={styles.btnSuccess} 
+          onPress={handleAddStatus}
+          {...(Platform.OS === 'web' && { title: 'Add New Status' })}
+        >
           <Text style={styles.btnText}>Add Status</Text>
         </TouchableOpacity>
       </View>
@@ -583,10 +726,18 @@ export const DWSMasterDataTab: React.FC = () => {
             <View style={[styles.tableCell, styles.actionsCell, { width: 150 }]}>
               {editingStatusId === status.id ? (
                 <>
-                  <TouchableOpacity style={styles.btnEdit} onPress={() => handleUpdateStatus(status.id)}>
+                  <TouchableOpacity 
+                    style={styles.btnEdit} 
+                    onPress={() => handleUpdateStatus(status.id)}
+                    {...(Platform.OS === 'web' && { title: 'Save Changes' })}
+                  >
                     <Text style={styles.btnSmText}>Save</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnCancel} onPress={() => setEditingStatusId(null)}>
+                  <TouchableOpacity 
+                    style={styles.btnCancel} 
+                    onPress={() => setEditingStatusId(null)}
+                    {...(Platform.OS === 'web' && { title: 'Cancel Editing' })}
+                  >
                     <Text style={styles.btnSmText}>Cancel</Text>
                   </TouchableOpacity>
                 </>
@@ -598,10 +749,15 @@ export const DWSMasterDataTab: React.FC = () => {
                       setEditingStatusId(status.id);
                       setEditingStatusName(status.name);
                     }}
+                    {...(Platform.OS === 'web' && { title: 'Edit Status' })}
                   >
                     <Text style={styles.btnSmText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnDelete} onPress={() => handleDeleteStatus(status.id)}>
+                  <TouchableOpacity 
+                    style={styles.btnDelete} 
+                    onPress={() => handleDeleteStatus(status.id)}
+                    {...(Platform.OS === 'web' && { title: 'Delete Status' })}
+                  >
                     <Text style={styles.btnSmText}>Delete</Text>
                   </TouchableOpacity>
                 </>

@@ -55,7 +55,13 @@ const Dropdown: React.FC<DropdownProps> = ({
   showColorBadge = false 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const selectedOption = options.find(o => o.value === value);
+  
+  // Filter options based on search text
+  const filteredOptions = searchText
+    ? options.filter(opt => opt.label.toLowerCase().includes(searchText.toLowerCase()))
+    : options;
   
   return (
     <View style={[dropdownStyles.container, { width }]}>
@@ -79,38 +85,61 @@ const Dropdown: React.FC<DropdownProps> = ({
         visible={isOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
+        onRequestClose={() => {
+          setIsOpen(false);
+          setSearchText('');
+        }}
       >
-        <Pressable style={dropdownStyles.overlay} onPress={() => setIsOpen(false)}>
+        <Pressable style={dropdownStyles.overlay} onPress={() => {
+          setIsOpen(false);
+          setSearchText('');
+        }}>
           <View style={dropdownStyles.modal}>
             <Text style={dropdownStyles.modalTitle}>{placeholder}</Text>
+            
+            {/* Search Input */}
+            <TextInput
+              style={dropdownStyles.searchInput}
+              placeholder="Search..."
+              value={searchText}
+              onChangeText={setSearchText}
+              autoFocus
+            />
+            
             <ScrollView style={dropdownStyles.optionsList}>
-              {options.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    dropdownStyles.option,
-                    value === option.value && dropdownStyles.optionSelected
-                  ]}
-                  onPress={() => {
-                    onSelect(option.value);
-                    setIsOpen(false);
-                  }}
-                >
-                  {showColorBadge && option.color && (
-                    <View style={[dropdownStyles.optionColorDot, { backgroundColor: option.color }]} />
-                  )}
-                  <Text style={[
-                    dropdownStyles.optionText,
-                    value === option.value && dropdownStyles.optionTextSelected
-                  ]}>
-                    {option.label}
-                  </Text>
-                  {value === option.value && (
-                    <Text style={dropdownStyles.checkmark}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      dropdownStyles.option,
+                      value === option.value && dropdownStyles.optionSelected
+                    ]}
+                    onPress={() => {
+                      onSelect(option.value);
+                      setIsOpen(false);
+                      setSearchText('');
+                    }}
+                  >
+                    {showColorBadge && option.color && (
+                      <View style={[dropdownStyles.optionColorDot, { backgroundColor: option.color }]} />
+                    )}
+                    <Text style={[
+                      dropdownStyles.optionText,
+                      value === option.value && dropdownStyles.optionTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                    {value === option.value && (
+                      <Text style={dropdownStyles.checkmark}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={dropdownStyles.emptyState}>
+                  <Text style={dropdownStyles.emptyText}>No matches found</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </Pressable>
@@ -173,6 +202,16 @@ const dropdownStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB'
   },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    margin: 12,
+    fontSize: 14,
+    backgroundColor: '#F9FAFB'
+  },
   optionsList: {
     maxHeight: 300
   },
@@ -206,12 +245,26 @@ const dropdownStyles = StyleSheet.create({
     fontSize: 16,
     color: colors.ACTION_BLUE,
     fontWeight: '700'
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center'
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.TEXT_SECONDARY,
+    fontStyle: 'italic'
   }
 });
 
-export const DWSDailyEntryTab: React.FC = () => {
+interface DWSDailyEntryTabProps {
+  initialFilter?: string;
+}
+
+export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilter }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Master data
   const [projects, setProjects] = useState<DWSProject[]>([]);
@@ -226,9 +279,56 @@ export const DWSDailyEntryTab: React.FC = () => {
   const [filterDate, setFilterDate] = useState('');
   const [filterActivity, setFilterActivity] = useState('');
   const [filterAssigned, setFilterAssigned] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState(initialFilter || '');
+  
+  // Actions menu state
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   
   const { isMobile } = useResponsive();
+
+  // Inject tooltip CSS for web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        [title] {
+          position: relative;
+          cursor: pointer;
+        }
+        [title]:hover::after {
+          content: attr(title);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.85);
+          color: white;
+          padding: 6px 10px;
+          border-radius: 4px;
+          white-space: nowrap;
+          font-size: 12px;
+          z-index: 10000;
+          pointer-events: none;
+          margin-bottom: 5px;
+        }
+        [title]:hover::before {
+          content: '';
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: rgba(0, 0, 0, 0.85);
+          z-index: 10000;
+          pointer-events: none;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, []);
 
   // Subscribe to data
   useEffect(() => {
@@ -249,6 +349,13 @@ export const DWSDailyEntryTab: React.FC = () => {
       unsubEntries();
     };
   }, []);
+
+  // Update filter when initialFilter changes
+  useEffect(() => {
+    if (initialFilter) {
+      setFilterStatus(initialFilter);
+    }
+  }, [initialFilter]);
 
   // Add new entry row
   const handleAddNewRow = async () => {
@@ -282,6 +389,11 @@ export const DWSDailyEntryTab: React.FC = () => {
       };
       
       await addEntry(newEntry);
+      
+      // Scroll to top to show the new entry
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }, 100);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -310,34 +422,52 @@ export const DWSDailyEntryTab: React.FC = () => {
 
   // Delete entry
   const handleDeleteEntry = async (id: string) => {
-    Alert.alert(
-      'Delete Entry',
-      'Are you sure you want to delete this entry?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteEntry(id);
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this entry? This action cannot be undone.');
+      if (confirmed) {
+        try {
+          await deleteEntry(id);
+        } catch (error: any) {
+          window.alert('Error: ' + error.message);
+        }
+      }
+    } else {
+      Alert.alert(
+        'Delete Entry',
+        'Are you sure you want to delete this entry?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteEntry(id);
+              } catch (error: any) {
+                Alert.alert('Error', error.message);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   // Add status update
-  const handleAddStatusUpdate = (entryId: string) => {
+  const handleAddStatusUpdate = async (entryId: string) => {
     if (Platform.OS === 'web') {
       const note = window.prompt('Enter status update:');
       if (note) {
-        addStatusUpdateToEntry(entryId, note).catch(error => {
+        try {
+          await addStatusUpdateToEntry(entryId, note);
+          // Auto-update Final Status to Ongoing if it was Not Started
+          const entry = entries.find(e => e.id === entryId);
+          if (entry && entry.finalStatus === 'Not Started') {
+            await updateEntry(entryId, { finalStatus: 'Ongoing' });
+          }
+        } catch (error: any) {
           Alert.alert('Error', error.message);
-        });
+        }
       }
     } else {
       Alert.prompt(
@@ -347,11 +477,18 @@ export const DWSDailyEntryTab: React.FC = () => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Add',
-            onPress: (note) => {
+            onPress: async (note) => {
               if (note) {
-                addStatusUpdateToEntry(entryId, note).catch(error => {
+                try {
+                  await addStatusUpdateToEntry(entryId, note);
+                  // Auto-update Final Status to Ongoing if it was Not Started
+                  const entry = entries.find(e => e.id === entryId);
+                  if (entry && entry.finalStatus === 'Not Started') {
+                    await updateEntry(entryId, { finalStatus: 'Ongoing' });
+                  }
+                } catch (error: any) {
                   Alert.alert('Error', error.message);
-                });
+                }
               }
             }
           }
@@ -388,7 +525,20 @@ export const DWSDailyEntryTab: React.FC = () => {
             return sub;
           });
           
-          await updateEntry(entryId, { subActivities: updatedSubActivities });
+          // Auto-update sub-activity status to Ongoing if it was Not Started
+          const updatedSubActivitiesWithStatus = updatedSubActivities.map(sub => {
+            if (sub.id === subId && sub.status === 'Not Started') {
+              return { ...sub, status: 'Ongoing' };
+            }
+            return sub;
+          });
+          
+          await updateEntry(entryId, { subActivities: updatedSubActivitiesWithStatus });
+          
+          // Auto-update Final Status to Ongoing if it was Not Started
+          if (entry.finalStatus === 'Not Started') {
+            await updateEntry(entryId, { finalStatus: 'Ongoing' });
+          }
         } catch (error: any) {
           Alert.alert('Error', error.message);
         }
@@ -398,11 +548,17 @@ export const DWSDailyEntryTab: React.FC = () => {
 
   // Add sub-activity
   const handleAddSubActivity = async (entryId: string) => {
+    console.log('[DWS] handleAddSubActivity called for entry:', entryId);
     try {
       const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
+      if (!entry) {
+        console.log('[DWS] Entry not found:', entryId);
+        return;
+      }
       
-      const newSubActivity: DWSSubActivity = {
+      console.log('[DWS] Adding sub-activity to entry:', entry.projectName);
+      
+      const newSubActivity: any = {
         id: Date.now().toString(),
         description: '',
         assignedTo: personnel[0]?.name || '',
@@ -411,9 +567,15 @@ export const DWSDailyEntryTab: React.FC = () => {
         statusUpdates: []
       };
       
+      // Don't include targetDate if it's undefined - Firestore doesn't support undefined
+      // It will be added when user sets a date
+      
       const updatedSubActivities = [...(entry.subActivities || []), newSubActivity];
+      console.log('[DWS] Updated sub-activities count:', updatedSubActivities.length);
       await updateEntry(entryId, { subActivities: updatedSubActivities });
+      console.log('[DWS] Sub-activity added successfully');
     } catch (error: any) {
+      console.error('[DWS] Error adding sub-activity:', error);
       Alert.alert('Error', error.message);
     }
   };
@@ -439,6 +601,13 @@ export const DWSDailyEntryTab: React.FC = () => {
 
   // Delete sub-activity
   const handleDeleteSubActivity = async (entryId: string, subId: string) => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this sub-activity?');
+      if (!confirmed) return;
+    } else {
+      // For native platforms, we'll delete directly for now (can add Alert.alert if needed)
+    }
+    
     try {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return;
@@ -446,7 +615,11 @@ export const DWSDailyEntryTab: React.FC = () => {
       const updatedSubActivities = (entry.subActivities || []).filter(sub => sub.id !== subId);
       await updateEntry(entryId, { subActivities: updatedSubActivities });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      if (Platform.OS === 'web') {
+        window.alert('Error: ' + error.message);
+      } else {
+        Alert.alert('Error', error.message);
+      }
     }
   };
 
@@ -535,29 +708,32 @@ export const DWSDailyEntryTab: React.FC = () => {
       </View>
       
       {/* Entries Table */}
-      <ScrollView style={styles.tableScroll}>
+      <ScrollView ref={scrollViewRef} style={styles.tableScroll}>
         <ScrollView horizontal showsHorizontalScrollIndicator={true}>
           <View style={styles.tableContainer}>
             {/* Header */}
             <View style={styles.tableHeader}>
               <Text style={[styles.headerCell, { width: 150 }]}>Project</Text>
-              <Text style={[styles.headerCell, { width: 120 }]}>Date & Time</Text>
+              <Text style={[styles.headerCell, { width: 100 }]}>Date & Time</Text>
               <Text style={[styles.headerCell, { width: 250 }]}>Main Activity</Text>
+              <Text style={[styles.headerCell, { width: 120 }]}>Target Date</Text>
               <Text style={[styles.headerCell, { width: 130 }]}>Assigned To</Text>
-              <Text style={[styles.headerCell, { width: 180 }]}>Actions</Text>
-              <Text style={[styles.headerCell, { width: 80 }]}>Hours</Text>
+              <Text style={[styles.headerCell, { width: 80 }]}>Actions</Text>
+              <Text style={[styles.headerCell, { width: 60 }]}>Hours</Text>
               <Text style={[styles.headerCell, { width: 120 }]}>Final Status</Text>
             </View>
             
             {/* Entry Rows */}
-            {filteredEntries.map((entry) => (
-              <View key={entry.id}>
+            {filteredEntries.map((entry, index) => (
+              <View key={entry.id} style={[index % 2 === 1 && styles.alternateRow]}>
                 {/* Main Entry Row */}
                 <View style={styles.tableRow}>
                   {/* Project Dropdown */}
                   <View style={[styles.cell, { width: 150 }]}>
                     <Dropdown
-                      options={projects.map(p => ({ value: p.id, label: p.name }))}
+                      options={projects
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(p => ({ value: p.id, label: p.name }))}
                       value={entry.projectId}
                       onSelect={(value) => handleUpdateEntry(entry.id, 'projectId', value)}
                       placeholder="Select Project"
@@ -566,29 +742,121 @@ export const DWSDailyEntryTab: React.FC = () => {
                   </View>
                   
                   {/* Date/Time */}
-                  <Text style={[styles.cell, { width: 120 }]}>{entry.dateTime}</Text>
+                  <Text style={[styles.cell, { width: 100 }]}>{entry.dateTime}</Text>
                   
                   {/* Main Activity */}
                   <View style={[styles.cell, { width: 250 }]}>
-                    <TextInput
-                      style={styles.cellInput}
-                      placeholder="Enter main activity..."
-                      value={entry.mainActivity}
-                      onChangeText={(text) => handleUpdateEntry(entry.id, 'mainActivity', text)}
-                      multiline
-                    />
+                    {Platform.OS === 'web' ? (
+                      <textarea
+                        style={{
+                          width: '100%',
+                          minHeight: '36px',
+                          padding: '6px 8px',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          fontFamily: 'inherit',
+                          resize: 'vertical'
+                        }}
+                        placeholder="Enter main activity..."
+                        defaultValue={entry.mainActivity}
+                        onBlur={(e: any) => {
+                          if (e.target.value !== entry.mainActivity) {
+                            handleUpdateEntry(entry.id, 'mainActivity', e.target.value);
+                          }
+                        }}
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                      />
+                    ) : (
+                      <TextInput
+                        style={styles.cellInput}
+                        placeholder="Enter main activity..."
+                        value={entry.mainActivity}
+                        onChangeText={(text) => handleUpdateEntry(entry.id, 'mainActivity', text)}
+                        multiline
+                        autoCorrect={false}
+                        autoCapitalize="none"
+                        spellCheck={false}
+                      />
+                    )}
                     {/* Status Updates */}
-                    {entry.statusUpdates?.filter(u => u.note).map((update, idx) => {
-                      const timestamp = formatTimestamp(update.timestamp);
-                      return (
-                        <View key={idx} style={styles.statusUpdate}>
-                          <Text style={styles.statusTimestamp}>
-                            {timestamp || 'Status Update'}
-                          </Text>
-                          <Text style={styles.statusUpdateNote}>{update.note}</Text>
-                        </View>
-                      );
-                    })}
+                    <View style={styles.statusUpdatesContainer}>
+                      {entry.statusUpdates?.filter(u => u.note).map((update, idx) => {
+                        const timestamp = formatTimestamp(update.timestamp);
+                        return (
+                          <View key={idx} style={styles.statusUpdate}>
+                            <Text style={styles.statusTimestamp}>
+                              {timestamp || 'Status Update'}
+                            </Text>
+                            <Text style={styles.statusUpdateNote}>{update.note}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                  
+                  {/* Target Date */}
+                  <View style={[styles.cell, { width: 120 }]}>
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="date"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          fontFamily: 'inherit',
+                          cursor: 'pointer'
+                        }}
+                        value={entry.targetDate ? (() => {
+                          try {
+                            const date = new Date(entry.targetDate);
+                            return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
+                          } catch {
+                            return '';
+                          }
+                        })() : ''}
+                        onClick={(e: any) => e.stopPropagation()}
+                        onChange={(e: any) => {
+                          e.stopPropagation();
+                          const dateValue = e.target.value;
+                          if (dateValue) {
+                            const date = new Date(dateValue);
+                            handleUpdateEntry(entry.id, 'targetDate', date);
+                          } else {
+                            handleUpdateEntry(entry.id, 'targetDate', null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <TextInput
+                        style={styles.cellInput}
+                        placeholder="DD/MM/YYYY"
+                        value={entry.targetDate ? (() => {
+                          try {
+                            const date = new Date(entry.targetDate);
+                            return !isNaN(date.getTime()) ? date.toLocaleDateString('en-GB') : '';
+                          } catch {
+                            return '';
+                          }
+                        })() : ''}
+                        onChangeText={(text) => {
+                          const parts = text.split('/');
+                          if (parts.length === 3) {
+                            const day = parseInt(parts[0], 10);
+                            const month = parseInt(parts[1], 10) - 1;
+                            const year = parseInt(parts[2], 10);
+                            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                              const date = new Date(year, month, day);
+                              handleUpdateEntry(entry.id, 'targetDate', date);
+                            }
+                          }
+                        }}
+                      />
+                    )}
                   </View>
                   
                   {/* Assigned To */}
@@ -603,36 +871,171 @@ export const DWSDailyEntryTab: React.FC = () => {
                   </View>
                   
                   {/* Actions */}
-                  <View style={[styles.cell, styles.actionsCell, { width: 180 }]}>
-                    <TouchableOpacity 
-                      style={styles.actionBtn}
-                      onPress={() => handleAddStatusUpdate(entry.id)}
-                    >
-                      <Text style={styles.actionBtnText}>+ Status</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.actionBtn, styles.actionBtnSuccess]}
-                      onPress={() => handleAddSubActivity(entry.id)}
-                    >
-                      <Text style={styles.actionBtnText}>+ Sub</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.actionBtn, styles.actionBtnDanger]}
-                      onPress={() => handleDeleteEntry(entry.id)}
-                    >
-                      <Text style={styles.actionBtnText}>🗑️</Text>
-                    </TouchableOpacity>
+                  <View style={[styles.cell, styles.actionsCell, { width: 80 }]}>
+                    {Platform.OS === 'web' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                        <button 
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#2563EB',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                          onClick={(e: any) => {
+                            e.stopPropagation();
+                            handleAddStatusUpdate(entry.id);
+                          }}
+                          title="Add Status Update"
+                        >
+                          + Status
+                        </button>
+                        <button 
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#10B981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                          onClick={(e: any) => {
+                            console.log('[DWS] + Sub button clicked for entry:', entry.id);
+                            e.stopPropagation();
+                            handleAddSubActivity(entry.id);
+                          }}
+                          title="Add Sub Activity"
+                        >
+                          + Sub
+                        </button>
+                        <button 
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#EF4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                          onClick={(e: any) => {
+                            e.stopPropagation();
+                            handleDeleteEntry(entry.id);
+                          }}
+                          title="Delete Entry"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <TouchableOpacity 
+                          style={styles.actionBtn}
+                          onPress={() => handleAddStatusUpdate(entry.id)}
+                        >
+                          <Text style={styles.actionBtnText}>+ Status</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, styles.actionBtnSuccess]}
+                          onPress={() => handleAddSubActivity(entry.id)}
+                        >
+                          <Text style={styles.actionBtnText}>+ Sub</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, styles.actionBtnDanger]}
+                          onPress={() => handleDeleteEntry(entry.id)}
+                        >
+                          <Text style={styles.actionBtnText}>🗑️</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </View>
                   
                   {/* Hours */}
-                  <View style={[styles.cell, { width: 80 }]}>
-                    <TextInput
-                      style={[styles.cellInput, { textAlign: 'center' }]}
-                      placeholder="0"
-                      value={entry.hours?.toString() || '0'}
-                      onChangeText={(text) => handleUpdateEntry(entry.id, 'hours', parseFloat(text) || 0)}
-                      keyboardType="numeric"
-                    />
+                  <View style={[styles.cell, { width: 60 }]}>
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="number"
+                        step="0.05"
+                        min="0"
+                        placeholder="0"
+                        value={entry.hours !== undefined && entry.hours !== null ? entry.hours : ''}
+                        onChange={(e: any) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            handleUpdateEntry(entry.id, 'hours', 0);
+                          } else {
+                            let numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                              // Convert 0.60 minutes to 1.0 hour, 0.65 to 1.05, etc.
+                              const hours = Math.floor(numValue);
+                              const minutes = Math.round((numValue - hours) * 100);
+                              if (minutes >= 60) {
+                                numValue = hours + 1 + (minutes - 60) / 100;
+                              }
+                              handleUpdateEntry(entry.id, 'hours', Math.round(numValue * 100) / 100);
+                            }
+                          }
+                        }}
+                        onKeyDown={(e: any) => {
+                          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const currentValue = entry.hours || 0;
+                            const step = e.key === 'ArrowUp' ? 0.05 : -0.05;
+                            let newValue = Math.round((currentValue + step) * 100) / 100;
+                            
+                            // Convert minutes to hours when reaching 0.60
+                            const hours = Math.floor(newValue);
+                            const minutes = Math.round((newValue - hours) * 100);
+                            if (minutes >= 60) {
+                              newValue = hours + 1;
+                            } else if (minutes < 0 && hours > 0) {
+                              newValue = hours - 1 + 0.55;
+                            }
+                            
+                            if (newValue >= 0) {
+                              handleUpdateEntry(entry.id, 'hours', newValue);
+                            }
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          fontSize: '13px',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '4px',
+                          textAlign: 'center',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                    ) : (
+                      <TextInput
+                        style={[styles.cellInput, { textAlign: 'center' }]}
+                        placeholder="0"
+                        value={entry.hours !== undefined && entry.hours !== null ? String(entry.hours) : ''}
+                        onChangeText={(text) => {
+                          if (text === '') {
+                            handleUpdateEntry(entry.id, 'hours', 0);
+                            return;
+                          }
+                          const cleaned = text.replace(/[^0-9.]/g, '');
+                          const parts = cleaned.split('.');
+                          if (parts.length > 2) return;
+                          const numValue = parseFloat(cleaned);
+                          if (!isNaN(numValue)) {
+                            handleUpdateEntry(entry.id, 'hours', numValue);
+                          }
+                        }}
+                        keyboardType="decimal-pad"
+                      />
+                    )}
                   </View>
                   
                   {/* Final Status */}
@@ -652,29 +1055,122 @@ export const DWSDailyEntryTab: React.FC = () => {
                 {entry.subActivities?.map((sub) => (
                   <View key={sub.id} style={[styles.tableRow, styles.subRow]}>
                     <View style={[styles.cell, { width: 150 }]} />
-                    <View style={[styles.cell, { width: 120 }]} />
+                    <View style={[styles.cell, { width: 100 }]} />
                     
                     {/* Sub Activity Description */}
                     <View style={[styles.cell, { width: 250 }]}>
-                      <TextInput
-                        style={styles.cellInput}
-                        placeholder="Enter sub activity..."
-                        value={sub.description}
-                        onChangeText={(text) => handleUpdateSubActivity(entry.id, sub.id, 'description', text)}
-                        multiline
-                      />
+                      {Platform.OS === 'web' ? (
+                        <textarea
+                          style={{
+                            width: '100%',
+                            minHeight: '36px',
+                            padding: '6px 8px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                            fontFamily: 'inherit',
+                            resize: 'vertical'
+                          }}
+                          placeholder="Enter sub activity..."
+                          defaultValue={sub.description}
+                          onBlur={(e: any) => {
+                            if (e.target.value !== sub.description) {
+                              handleUpdateSubActivity(entry.id, sub.id, 'description', e.target.value);
+                            }
+                          }}
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                        />
+                      ) : (
+                        <TextInput
+                          style={styles.cellInput}
+                          placeholder="Enter sub activity..."
+                          value={sub.description}
+                          onChangeText={(text) => handleUpdateSubActivity(entry.id, sub.id, 'description', text)}
+                          multiline
+                        />
+                      )}
                       {/* Sub-Activity Status Updates */}
-                      {sub.statusUpdates?.filter(u => u.note).map((update, idx) => {
-                        const timestamp = formatTimestamp(update.timestamp);
-                        return (
-                          <View key={idx} style={styles.statusUpdate}>
-                            <Text style={styles.statusTimestamp}>
-                              {timestamp || 'Status Update'}
-                            </Text>
-                            <Text style={styles.statusUpdateNote}>{update.note}</Text>
-                          </View>
-                        );
-                      })}
+                      <View style={styles.statusUpdatesContainer}>
+                        {sub.statusUpdates?.filter(u => u.note).map((update, idx) => {
+                          const timestamp = formatTimestamp(update.timestamp);
+                          return (
+                            <View key={idx} style={styles.statusUpdate}>
+                              <Text style={styles.statusTimestamp}>
+                                {timestamp || 'Status Update'}
+                              </Text>
+                              <Text style={styles.statusUpdateNote}>{update.note}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                    
+                    {/* Target Date */}
+                    <View style={[styles.cell, { width: 120 }]}>
+                      {Platform.OS === 'web' ? (
+                        <input
+                          type="date"
+                          value={sub.targetDate ? (() => {
+                            try {
+                              const date = new Date(sub.targetDate);
+                              return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
+                            } catch {
+                              return '';
+                            }
+                          })() : ''}
+                          onClick={(e: any) => {
+                            e.stopPropagation();
+                          }}
+                          onChange={(e: any) => {
+                            const dateValue = e.target.value;
+                            if (dateValue) {
+                              const date = new Date(dateValue);
+                              handleUpdateSubActivity(entry.id, sub.id, 'targetDate', date);
+                            } else {
+                              handleUpdateSubActivity(entry.id, sub.id, 'targetDate', undefined);
+                            }
+                          }}
+                          onFocus={(e: any) => {
+                            e.stopPropagation();
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '6px 8px',
+                            fontSize: '13px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '4px',
+                            fontFamily: 'inherit',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      ) : (
+                        <TextInput
+                          style={styles.cellInput}
+                          placeholder="DD/MM/YYYY"
+                          value={sub.targetDate ? (() => {
+                            try {
+                              const date = new Date(sub.targetDate);
+                              return !isNaN(date.getTime()) ? date.toLocaleDateString('en-GB') : '';
+                            } catch {
+                              return '';
+                            }
+                          })() : ''}
+                          onChangeText={(text) => {
+                            const parts = text.split('/');
+                            if (parts.length === 3) {
+                              const day = parseInt(parts[0], 10);
+                              const month = parseInt(parts[1], 10) - 1;
+                              const year = parseInt(parts[2], 10);
+                              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                                const date = new Date(year, month, day);
+                                handleUpdateSubActivity(entry.id, sub.id, 'targetDate', date);
+                              }
+                            }
+                          }}
+                        />
+                      )}
                     </View>
                     
                     {/* Assigned To */}
@@ -689,30 +1185,144 @@ export const DWSDailyEntryTab: React.FC = () => {
                     </View>
                     
                     {/* Actions */}
-                    <View style={[styles.cell, styles.actionsCell, { width: 180 }]}>
-                      <TouchableOpacity 
-                        style={styles.actionBtn}
-                        onPress={() => handleAddSubActivityStatusUpdate(entry.id, sub.id)}
-                      >
-                        <Text style={styles.actionBtnText}>+ Status</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={[styles.actionBtn, styles.actionBtnDanger]}
-                        onPress={() => handleDeleteSubActivity(entry.id, sub.id)}
-                      >
-                        <Text style={styles.actionBtnText}>Delete Sub</Text>
-                      </TouchableOpacity>
+                    <View style={[styles.cell, styles.actionsCell, { width: 80 }]}>
+                      {Platform.OS === 'web' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                          <button 
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#2563EB',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: '500',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                            onClick={(e: any) => {
+                              e.stopPropagation();
+                              handleAddSubActivityStatusUpdate(entry.id, sub.id);
+                            }}
+                            title="Add Status Update"
+                          >
+                            + Status
+                          </button>
+                          <button 
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#EF4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={(e: any) => {
+                              e.stopPropagation();
+                              handleDeleteSubActivity(entry.id, sub.id);
+                            }}
+                            title="Delete Sub Activity"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <TouchableOpacity 
+                            style={styles.actionBtn}
+                            onPress={() => handleAddSubActivityStatusUpdate(entry.id, sub.id)}
+                          >
+                            <Text style={styles.actionBtnText}>+ Status</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.actionBtn, styles.actionBtnDanger]}
+                            onPress={() => handleDeleteSubActivity(entry.id, sub.id)}
+                          >
+                            <Text style={styles.actionBtnText}>🗑️</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
                     
                     {/* Hours */}
-                    <View style={[styles.cell, { width: 80 }]}>
-                      <TextInput
-                        style={[styles.cellInput, { textAlign: 'center' }]}
-                        placeholder="0"
-                        value={sub.hours?.toString() || '0'}
-                        onChangeText={(text) => handleUpdateSubActivity(entry.id, sub.id, 'hours', parseFloat(text) || 0)}
-                        keyboardType="numeric"
-                      />
+                    <View style={[styles.cell, { width: 60 }]}>
+                      {Platform.OS === 'web' ? (
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0"
+                          placeholder="0"
+                          value={sub.hours !== undefined && sub.hours !== null ? sub.hours : ''}
+                          onChange={(e: any) => {
+                            const value = e.target.value;
+                            if (value === '') {
+                              handleUpdateSubActivity(entry.id, sub.id, 'hours', 0);
+                            } else {
+                              let numValue = parseFloat(value);
+                              if (!isNaN(numValue)) {
+                                // Convert 0.60 minutes to 1.0 hour, 0.65 to 1.05, etc.
+                                const hours = Math.floor(numValue);
+                                const minutes = Math.round((numValue - hours) * 100);
+                                if (minutes >= 60) {
+                                  numValue = hours + 1 + (minutes - 60) / 100;
+                                }
+                                handleUpdateSubActivity(entry.id, sub.id, 'hours', Math.round(numValue * 100) / 100);
+                              }
+                            }
+                          }}
+                          onKeyDown={(e: any) => {
+                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              const currentValue = sub.hours || 0;
+                              const step = e.key === 'ArrowUp' ? 0.05 : -0.05;
+                              let newValue = Math.round((currentValue + step) * 100) / 100;
+                              
+                              // Convert minutes to hours when reaching 0.60
+                              const hours = Math.floor(newValue);
+                              const minutes = Math.round((newValue - hours) * 100);
+                              if (minutes >= 60) {
+                                newValue = hours + 1;
+                              } else if (minutes < 0 && hours > 0) {
+                                newValue = hours - 1 + 0.55;
+                              }
+                              
+                              if (newValue >= 0) {
+                                handleUpdateSubActivity(entry.id, sub.id, 'hours', newValue);
+                              }
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '6px 8px',
+                            fontSize: '13px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '4px',
+                            textAlign: 'center',
+                            fontFamily: 'inherit'
+                          }}
+                        />
+                      ) : (
+                        <TextInput
+                          style={[styles.cellInput, { textAlign: 'center' }]}
+                          placeholder="0"
+                          value={sub.hours !== undefined && sub.hours !== null ? String(sub.hours) : ''}
+                          onChangeText={(text) => {
+                            if (text === '') {
+                              handleUpdateSubActivity(entry.id, sub.id, 'hours', 0);
+                              return;
+                            }
+                            const cleaned = text.replace(/[^0-9.]/g, '');
+                            const parts = cleaned.split('.');
+                            if (parts.length > 2) return;
+                            const numValue = parseFloat(cleaned);
+                            if (!isNaN(numValue)) {
+                              handleUpdateSubActivity(entry.id, sub.id, 'hours', numValue);
+                            }
+                          }}
+                          keyboardType="decimal-pad"
+                        />
+                      )}
                     </View>
                     
                     {/* Status */}
@@ -741,17 +1351,45 @@ export const DWSDailyEntryTab: React.FC = () => {
       </ScrollView>
       
       {/* Add Button */}
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={handleAddNewRow}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.addButtonText}>+</Text>
-        )}
-      </TouchableOpacity>
+      {Platform.OS === 'web' ? (
+        <button
+          style={{
+            position: 'fixed',
+            bottom: '30px',
+            right: '30px',
+            width: '60px',
+            height: '60px',
+            borderRadius: '30px',
+            backgroundColor: '#28a745',
+            color: '#fff',
+            fontSize: '30px',
+            fontWeight: '300',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onClick={handleAddNewRow}
+          disabled={saving}
+          title="Add New Entry"
+        >
+          {saving ? '...' : '+'}
+        </button>
+      ) : (
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={handleAddNewRow}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.addButtonText}>+</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -849,6 +1487,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: spacing.sm
   },
+  alternateRow: {
+    backgroundColor: '#F9FAFB'
+  },
   subRow: {
     backgroundColor: '#F8F9FA'
   },
@@ -920,18 +1561,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.TEXT_PRIMARY
   },
+  statusUpdatesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.xs
+  },
   statusUpdate: {
     backgroundColor: '#FFF3CD',
     padding: spacing.sm,
-    marginTop: spacing.xs,
     borderLeftWidth: 3,
     borderLeftColor: '#FFC107',
-    borderRadius: 4
+    borderRadius: 4,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
+    width: 230
   },
   statusTimestamp: {
     fontSize: 12,
     color: colors.TEXT_PRIMARY,
-    fontWeight: '400',
+    fontWeight: '600',
     marginBottom: 2
   },
   statusUpdateNote: {

@@ -351,13 +351,28 @@ export const getAllEntries = async (): Promise<DWSDailyEntry[]> => {
   try {
     const q = query(collection(db, COLLECTIONS.ENTRIES), orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: toDate(doc.data().date),
-      createdAt: toDate(doc.data().createdAt),
-      updatedAt: toDate(doc.data().updatedAt)
-    } as DWSDailyEntry));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        date: toDate(data.date),
+        targetDate: data.targetDate ? toDate(data.targetDate) : undefined,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+        statusUpdates: (data.statusUpdates || []).map((update: any) => ({
+          ...update,
+          timestamp: toDate(update.timestamp)
+        })),
+        subActivities: (data.subActivities || []).map((sub: any) => ({
+          ...sub,
+          statusUpdates: (sub.statusUpdates || []).map((update: any) => ({
+            ...update,
+            timestamp: toDate(update.timestamp)
+          }))
+        }))
+      } as DWSDailyEntry;
+    });
   } catch (error) {
     console.error('[DWS Service] Error getting entries:', error);
     throw error;
@@ -372,13 +387,29 @@ export const subscribeToEntries = (
 ): (() => void) => {
   const q = query(collection(db, COLLECTIONS.ENTRIES), orderBy('date', 'desc'));
   return onSnapshot(q, (snapshot) => {
-    const entries = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: toDate(doc.data().date),
-      createdAt: toDate(doc.data().createdAt),
-      updatedAt: toDate(doc.data().updatedAt)
-    } as DWSDailyEntry));
+    const entries = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        date: toDate(data.date),
+        targetDate: data.targetDate ? toDate(data.targetDate) : undefined,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+        statusUpdates: (data.statusUpdates || []).map((update: any) => ({
+          ...update,
+          timestamp: toDate(update.timestamp)
+        })),
+        subActivities: (data.subActivities || []).map((sub: any) => ({
+          ...sub,
+          targetDate: sub.targetDate ? toDate(sub.targetDate) : undefined,
+          statusUpdates: (sub.statusUpdates || []).map((update: any) => ({
+            ...update,
+            timestamp: toDate(update.timestamp)
+          }))
+        }))
+      } as DWSDailyEntry;
+    });
     callback(entries);
   }, (error) => {
     console.error('[DWS Service] Error subscribing to entries:', error);
@@ -397,13 +428,29 @@ export const getEntriesByDateRange = async (startDate: Date, endDate: Date): Pro
       orderBy('date', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      date: toDate(doc.data().date),
-      createdAt: toDate(doc.data().createdAt),
-      updatedAt: toDate(doc.data().updatedAt)
-    } as DWSDailyEntry));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        date: toDate(data.date),
+        targetDate: data.targetDate ? toDate(data.targetDate) : undefined,
+        createdAt: toDate(data.createdAt),
+        updatedAt: toDate(data.updatedAt),
+        statusUpdates: (data.statusUpdates || []).map((update: any) => ({
+          ...update,
+          timestamp: toDate(update.timestamp)
+        })),
+        subActivities: (data.subActivities || []).map((sub: any) => ({
+          ...sub,
+          targetDate: sub.targetDate ? toDate(sub.targetDate) : undefined,
+          statusUpdates: (sub.statusUpdates || []).map((update: any) => ({
+            ...update,
+            timestamp: toDate(update.timestamp)
+          }))
+        }))
+      } as DWSDailyEntry;
+    });
   } catch (error) {
     console.error('[DWS Service] Error getting entries by date range:', error);
     throw error;
@@ -454,6 +501,55 @@ export const updateEntry = async (id: string, updates: Partial<DWSDailyEntry>): 
     if (updates.date) {
       updateData.date = Timestamp.fromDate(updates.date instanceof Date ? updates.date : new Date(updates.date));
     }
+    if (updates.targetDate) {
+      updateData.targetDate = Timestamp.fromDate(updates.targetDate instanceof Date ? updates.targetDate : new Date(updates.targetDate));
+    } else if (updates.targetDate === null) {
+      updateData.targetDate = null;
+    }
+    
+    // Handle sub-activities with proper date conversion and remove undefined values
+    if (updates.subActivities) {
+      updateData.subActivities = updates.subActivities.map(sub => {
+        const cleanSub: any = { ...sub };
+        
+        // Convert targetDate to Timestamp if it exists, otherwise remove the field
+        if (sub.targetDate) {
+          cleanSub.targetDate = Timestamp.fromDate(sub.targetDate instanceof Date ? sub.targetDate : new Date(sub.targetDate));
+        } else {
+          delete cleanSub.targetDate; // Remove undefined targetDate
+        }
+        
+        // Ensure statusUpdates timestamps are converted properly
+        if (cleanSub.statusUpdates && Array.isArray(cleanSub.statusUpdates)) {
+          cleanSub.statusUpdates = cleanSub.statusUpdates.map((update: any) => {
+            const cleanUpdate = { ...update };
+            // Only convert if timestamp is a Date object and not already a Firestore Timestamp
+            if (update.timestamp) {
+              if (update.timestamp instanceof Date) {
+                cleanUpdate.timestamp = Timestamp.fromDate(update.timestamp);
+              } else if (update.timestamp.toDate) {
+                // Already a Firestore Timestamp, keep as is
+                cleanUpdate.timestamp = update.timestamp;
+              } else {
+                // Try to create a Date from it
+                try {
+                  cleanUpdate.timestamp = Timestamp.fromDate(new Date(update.timestamp));
+                } catch (e) {
+                  console.warn('[DWS Service] Invalid timestamp, using current time:', update.timestamp);
+                  cleanUpdate.timestamp = Timestamp.now();
+                }
+              }
+            } else {
+              cleanUpdate.timestamp = Timestamp.now();
+            }
+            return cleanUpdate;
+          });
+        }
+        
+        return cleanSub;
+      });
+    }
+    
     await updateDoc(docRef, updateData);
     console.log('[DWS Service] Entry updated:', id);
   } catch (error) {
@@ -558,12 +654,51 @@ export const getReportData = async (filter: DWSReportFilter): Promise<DWSDailyEn
   try {
     let entries = await getAllEntries();
     
-    // Filter by date range
-    if (filter.startDate) {
-      entries = entries.filter(e => e.date >= filter.startDate!);
-    }
-    if (filter.endDate) {
-      entries = entries.filter(e => e.date <= filter.endDate!);
+    // Determine filter mode: entry date or status update date
+    const filterBy = filter.filterBy || 'entryDate';
+    
+    if (filterBy === 'statusUpdateDate') {
+      // Filter by status update timestamp
+      if (filter.startDate || filter.endDate) {
+        entries = entries.map(entry => {
+          // Find status updates within the date range
+          const filteredStatusUpdates = entry.statusUpdates.filter(update => {
+            const updateDate = new Date(update.timestamp);
+            updateDate.setHours(0, 0, 0, 0);
+            
+            if (filter.startDate) {
+              const startDate = new Date(filter.startDate);
+              startDate.setHours(0, 0, 0, 0);
+              if (updateDate < startDate) return false;
+            }
+            
+            if (filter.endDate) {
+              const endDate = new Date(filter.endDate);
+              endDate.setHours(23, 59, 59, 999);
+              if (updateDate > endDate) return false;
+            }
+            
+            return true;
+          });
+          
+          // Only include entries that have status updates in the date range
+          if (filteredStatusUpdates.length > 0) {
+            return {
+              ...entry,
+              statusUpdates: filteredStatusUpdates
+            };
+          }
+          return null;
+        }).filter(entry => entry !== null) as DWSDailyEntry[];
+      }
+    } else {
+      // Original behavior: Filter by entry date
+      if (filter.startDate) {
+        entries = entries.filter(e => e.date >= filter.startDate!);
+      }
+      if (filter.endDate) {
+        entries = entries.filter(e => e.date <= filter.endDate!);
+      }
     }
     
     // Filter by project

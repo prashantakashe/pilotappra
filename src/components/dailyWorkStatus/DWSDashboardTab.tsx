@@ -11,7 +11,8 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  TouchableOpacity
 } from 'react-native';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
@@ -19,13 +20,61 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { dailyWorkStatusService, getDashboardMetrics } from '../../services/dailyWorkStatusService';
 import type { DWSDashboardMetrics, DWSDailyEntry, DWSStatus } from '../../types/dailyWorkStatus';
 
-export const DWSDashboardTab: React.FC = () => {
+interface DWSDashboardTabProps {
+  onNavigate?: (tab: 'DWSMaster' | 'DWSDaily' | 'DWSReport' | 'DWSDashboard' | 'DWSUsers', filter?: string) => void;
+}
+
+export const DWSDashboardTab: React.FC<DWSDashboardTabProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<DWSDashboardMetrics | null>(null);
   const [recentEntries, setRecentEntries] = useState<DWSDailyEntry[]>([]);
   const [statuses, setStatuses] = useState<DWSStatus[]>([]);
   
   const { isMobile } = useResponsive();
+
+  // Inject tooltip CSS for web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        [title] {
+          position: relative;
+          cursor: pointer;
+        }
+        [title]:hover::after {
+          content: attr(title);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.85);
+          color: white;
+          padding: 6px 10px;
+          border-radius: 4px;
+          white-space: nowrap;
+          font-size: 12px;
+          z-index: 10000;
+          pointer-events: none;
+          margin-bottom: 5px;
+        }
+        [title]:hover::before {
+          content: '';
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: rgba(0, 0, 0, 0.85);
+          z-index: 10000;
+          pointer-events: none;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -91,47 +140,75 @@ export const DWSDashboardTab: React.FC = () => {
       
       {/* KPI Cards */}
       <View style={[styles.kpiRow, isMobile && styles.kpiRowMobile]}>
-        <View style={[styles.kpiCard, { backgroundColor: '#E3F2FD' }]}>
+        <TouchableOpacity 
+          style={[styles.kpiCard, { backgroundColor: '#E3F2FD' }]}
+          onPress={() => onNavigate?.('DWSDaily')}
+          {...(Platform.OS === 'web' && { title: 'View Daily Entries' })}
+        >
           <Text style={styles.kpiIcon}>📋</Text>
           <Text style={styles.kpiValue}>{metrics?.todayEntries || 0}</Text>
           <Text style={styles.kpiLabel}>Today's Entries</Text>
-        </View>
+        </TouchableOpacity>
         
-        <View style={[styles.kpiCard, { backgroundColor: '#E8F5E9' }]}>
+        <TouchableOpacity 
+          style={[styles.kpiCard, { backgroundColor: '#E8F5E9' }]}
+          onPress={() => onNavigate?.('DWSMaster')}
+          {...(Platform.OS === 'web' && { title: 'View Projects' })}
+        >
           <Text style={styles.kpiIcon}>🏗️</Text>
           <Text style={styles.kpiValue}>{metrics?.activeProjects || 0}</Text>
           <Text style={styles.kpiLabel}>Active Projects</Text>
-        </View>
+        </TouchableOpacity>
         
-        <View style={[styles.kpiCard, { backgroundColor: '#FFF3E0' }]}>
+        <TouchableOpacity 
+          style={[styles.kpiCard, { backgroundColor: '#FFF3E0' }]}
+          onPress={() => onNavigate?.('DWSMaster')}
+          {...(Platform.OS === 'web' && { title: 'View Personnel' })}
+        >
           <Text style={styles.kpiIcon}>👷</Text>
           <Text style={styles.kpiValue}>{metrics?.totalPersonnel || 0}</Text>
           <Text style={styles.kpiLabel}>Personnel</Text>
-        </View>
+        </TouchableOpacity>
         
-        <View style={[styles.kpiCard, { backgroundColor: '#FCE4EC' }]}>
+        <TouchableOpacity 
+          style={[styles.kpiCard, { backgroundColor: '#FCE4EC' }]}
+          onPress={() => onNavigate?.('DWSDaily')}
+          {...(Platform.OS === 'web' && { title: 'View Pending Items' })}
+        >
           <Text style={styles.kpiIcon}>⏳</Text>
           <Text style={styles.kpiValue}>{metrics?.pendingApprovals || 0}</Text>
           <Text style={styles.kpiLabel}>Pending</Text>
-        </View>
+        </TouchableOpacity>
       </View>
       
       {/* Status Summary */}
       <View style={styles.summaryCard}>
         <Text style={styles.cardTitle}>📈 Work Status Summary</Text>
         <View style={styles.statusSummaryRow}>
-          <View style={[styles.statusItem, { borderLeftColor: '#28a745' }]}>
+          <TouchableOpacity 
+            style={[styles.statusItem, { borderLeftColor: '#28a745' }]}
+            onPress={() => onNavigate?.('DWSDaily', 'Completed')}
+            {...(Platform.OS === 'web' && { title: 'View Completed Activities' })}
+          >
             <Text style={styles.statusValue}>{metrics?.completedActivities || 0}</Text>
             <Text style={styles.statusLabel}>Completed</Text>
-          </View>
-          <View style={[styles.statusItem, { borderLeftColor: '#ffc107' }]}>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.statusItem, { borderLeftColor: '#ffc107' }]}
+            onPress={() => onNavigate?.('DWSDaily', 'Ongoing')}
+            {...(Platform.OS === 'web' && { title: 'View Ongoing Activities' })}
+          >
             <Text style={styles.statusValue}>{metrics?.ongoingActivities || 0}</Text>
             <Text style={styles.statusLabel}>Ongoing</Text>
-          </View>
-          <View style={[styles.statusItem, { borderLeftColor: '#dc3545' }]}>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.statusItem, { borderLeftColor: '#dc3545' }]}
+            onPress={() => onNavigate?.('DWSDaily', 'Not Started')}
+            {...(Platform.OS === 'web' && { title: 'View Not Started Activities' })}
+          >
             <Text style={styles.statusValue}>{metrics?.notStartedActivities || 0}</Text>
             <Text style={styles.statusLabel}>Not Started</Text>
-          </View>
+          </TouchableOpacity>
         </View>
         
         {/* Progress Bar */}
@@ -178,7 +255,12 @@ export const DWSDashboardTab: React.FC = () => {
         <Text style={styles.cardTitle}>📝 Recent Work Entries</Text>
         {recentEntries.length > 0 ? (
           recentEntries.map((entry) => (
-            <View key={entry.id} style={styles.entryItem}>
+            <TouchableOpacity 
+              key={entry.id} 
+              style={styles.entryItem}
+              onPress={() => onNavigate?.('DWSDaily')}
+              {...(Platform.OS === 'web' && { title: 'View in Daily Entry' })}
+            >
               <View style={styles.entryHeader}>
                 <Text style={styles.entryProject}>{entry.projectName}</Text>
                 <View style={[
@@ -194,7 +276,7 @@ export const DWSDashboardTab: React.FC = () => {
                 <Text style={styles.entryMeta}>⏱️ {entry.hours || 0}h</Text>
                 <Text style={styles.entryMeta}>📅 {entry.dateTime}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -294,7 +376,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
+      web: { 
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        cursor: 'pointer',
+        transition: 'transform 0.2s, box-shadow 0.2s'
+      },
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -346,7 +432,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
     borderLeftWidth: 4,
-    alignItems: 'center'
+    alignItems: 'center',
+    ...Platform.select({
+      web: { 
+        cursor: 'pointer',
+        transition: 'transform 0.2s, background-color 0.2s'
+      }
+    })
   },
   statusValue: {
     fontSize: 24,
@@ -392,7 +484,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: spacing.sm,
     borderLeftWidth: 3,
-    borderLeftColor: colors.ACTION_BLUE
+    borderLeftColor: colors.ACTION_BLUE,
+    ...Platform.select({
+      web: { 
+        cursor: 'pointer',
+        transition: 'background-color 0.2s, transform 0.2s'
+      }
+    })
   },
   entryHeader: {
     flexDirection: 'row',

@@ -15,6 +15,7 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
 }) => {
   // Track which revisions to display (R1, R2, R3, etc.)
   const [activeRevisions, setActiveRevisions] = useState<string[]>([]);
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
   
   // Refs to synchronize horizontal scrolling between header and body
   const headerScrollRef = React.useRef<ScrollView>(null);
@@ -34,30 +35,66 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
 
   // Calculate total table width based on columns
   const calculateTableWidth = () => {
-    const baseWidth = 50 + 200 + 100 + 100 + 60 + 80 + 90 + 110; // Base columns
+    const baseWidth = 50 + 80 + 250 + 100 + 100 + 60 + 80 + 90 + 110; // Base columns (added itemNo: 80, increased description: 250)
     const revisionWidth = activeRevisions.length * (100 + 110 + 30); // Each revision: rate + amount + delete button (reduced widths)
     return baseWidth + revisionWidth;
   };
 
   const tableWidth = calculateTableWidth();
 
-  // Log when parsedBoq changes to debug revision display
+  // Auto-detect and add revisions that exist in the data
   useEffect(() => {
-    console.log('[ParsedBoqTablePhase2_1] parsedBoq updated:', parsedBoq);
-    if (parsedBoq.length > 0) {
-      console.log('[ParsedBoqTablePhase2_1] First item revisions:', parsedBoq[0].revisions);
+    if (parsedBoq.length === 0) {
+      console.log('[ParsedBoqTablePhase2_1] No BOQ data, skipping auto-add');
+      return;
     }
-  }, [parsedBoq]);
-
-  // Auto-show R1 columns if any item already has an R1 rate saved
-  useEffect(() => {
-    if (!activeRevisions.includes('R1')) {
-      const anyR1 = parsedBoq.some((row) => !!(row as any)?.revisions?.R1?.rate);
-      if (anyR1) {
-        setActiveRevisions((prev) => [...prev, 'R1']);
+    
+    // Only run once when data first loads
+    if (hasAutoLoaded) {
+      console.log('[ParsedBoqTablePhase2_1] Already auto-loaded revisions, skipping');
+      return;
+    }
+    
+    // Only auto-add if we don't have any active revisions yet
+    if (activeRevisions.length > 0) {
+      console.log('[ParsedBoqTablePhase2_1] Already have active revisions:', activeRevisions);
+      return;
+    }
+    
+    console.log('[ParsedBoqTablePhase2_1] Checking BOQ items for existing revisions...');
+    console.log('[ParsedBoqTablePhase2_1] Total items:', parsedBoq.length);
+    console.log('[ParsedBoqTablePhase2_1] First item:', parsedBoq[0]);
+    
+    // Find all revision keys that exist in the data
+    const existingRevisions = new Set<string>();
+    let itemsWithRevisions = 0;
+    
+    parsedBoq.forEach((item, idx) => {
+      if (item.revisions && typeof item.revisions === 'object') {
+        Object.keys(item.revisions).forEach(key => {
+          const rev = (item.revisions as any)[key];
+          if (rev && rev.rate) {
+            console.log(`[ParsedBoqTablePhase2_1] Item ${idx} has ${key} with rate:`, rev.rate);
+            existingRevisions.add(key);
+            itemsWithRevisions++;
+          }
+        });
       }
+    });
+    
+    const revisionsArray = Array.from(existingRevisions).sort();
+    console.log('[ParsedBoqTablePhase2_1] Found revisions:', revisionsArray, 'in', itemsWithRevisions, 'items');
+    
+    // Auto-add ONLY R1 revision if it exists (user must manually add R2, R3, etc.)
+    if (revisionsArray.includes('R1')) {
+      console.log('[ParsedBoqTablePhase2_1] ✅ Auto-adding R1 to display');
+      setActiveRevisions(['R1']);
+      setHasAutoLoaded(true);
+    } else {
+      console.log('[ParsedBoqTablePhase2_1] No R1 revision found in data');
+      setHasAutoLoaded(true);
     }
-  }, [parsedBoq, activeRevisions]);
+  }, [parsedBoq.length, hasAutoLoaded, activeRevisions.length]);
 
   // Filter and track original indices
   const itemsToDisplayWithIndex = useMemo(() => {
@@ -107,13 +144,27 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
   const getRateDisplay = (item: StandardBOQRow, itemIndex: number, revisionKey: string) => {
     const revision = (item.revisions as any)?.[revisionKey];
     console.log(`[ParsedBoqTablePhase2_1] getRateDisplay - actualIndex: ${itemIndex}, revision key: ${revisionKey}, has revision: ${!!revision}`, revision);
+    
+    // If row has no quantity, rate, or amount, don't show Calculate button
+    const hasData = item.quantity !== null || item.tenderRate !== null || item.tenderAmount !== null;
+    if (!hasData) {
+      return <Text style={styles.cell}>\u2014</Text>;
+    }
+    
     if (revision && revision.rate) {
       console.log(`[ParsedBoqTablePhase2_1] Displaying rate: ${revision.rate}`);
       // Make existing rate clickable to re-open the builder for re-edit
       return (
         <TouchableOpacity
           style={styles.rateValueTouchable}
-          onPress={() => onOpenRateBuilder(itemIndex, item, revisionKey)}
+          onPress={(e) => {
+            if (e && typeof e.stopPropagation === 'function') {
+              e.stopPropagation();
+            }
+            console.log('[ParsedBoqTablePhase2_1] Edit rate clicked for index:', itemIndex);
+            onOpenRateBuilder(itemIndex, item, revisionKey);
+          }}
+          activeOpacity={0.7}
           accessible={true}
           accessibilityRole="button"
           accessibilityLabel={`Edit Rate for item ${itemIndex + 1}, ${revisionKey}`}
@@ -127,7 +178,14 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
     return (
       <TouchableOpacity
         style={styles.rateButton}
-        onPress={() => onOpenRateBuilder(itemIndex, item, revisionKey)}
+        onPress={(e) => {
+          if (e && typeof e.stopPropagation === 'function') {
+            e.stopPropagation();
+          }
+          console.log('[ParsedBoqTablePhase2_1] Calculate clicked for index:', itemIndex);
+          onOpenRateBuilder(itemIndex, item, revisionKey);
+        }}
+        activeOpacity={0.7}
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel={`Calculate Rate for item ${itemIndex + 1}, ${revisionKey}`}
@@ -192,6 +250,7 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
         <View style={[styles.headerRow, { width: tableWidth }]}>
           {/* Base Headers - Light Blue */}
           <Text style={[styles.headerCell, styles.srNoCell, styles.headerBaseColor]}>Sr. No.</Text>
+          <Text style={[styles.headerCell, styles.itemNoCell, styles.headerBaseColor]}>Item No.</Text>
           <Text style={[styles.headerCell, styles.descriptionCell, styles.headerBaseColor]}>Description</Text>
           <Text style={[styles.headerCell, styles.categoryCell, styles.headerBaseColor]}>Category</Text>
           <Text style={[styles.headerCell, styles.subCategoryCell, styles.headerBaseColor]}>SubCategory</Text>
@@ -267,9 +326,9 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
                 >
                   {/* Base Columns */}
                   <Text style={[styles.cell, styles.srNoCell]}>{filteredIndex + 1}</Text>
+                  <Text style={[styles.cell, styles.itemNoCell]}>{item.itemNo || '—'}</Text>
                   <Text
                     style={[styles.cell, styles.descriptionCell]}
-                    numberOfLines={2}
                   >
                     {item.description || '—'}
                   </Text>
@@ -300,7 +359,7 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
 
                   {/* Revision Columns */}
                   {activeRevisions.map((revisionKey) => (
-                    <View key={revisionKey} style={styles.revisionCellGroup}>
+                    <View key={`${originalIndex}-${revisionKey}`} style={styles.revisionCellGroup}>
                       <View style={[styles.cell, styles.revisionRateCell]}>
                         {getRateDisplay(item, originalIndex, revisionKey)}
                       </View>
@@ -315,7 +374,8 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
               {/* Totals Row (only amounts) */}
               <View style={[styles.totalRow, { width: tableWidth }]}>
                 <Text style={[styles.cell, styles.srNoCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.descriptionCell, styles.totalText]}>—</Text>
+                <Text style={[styles.cell, styles.itemNoCell, styles.totalText]}>—</Text>
+                <Text style={[styles.cell, styles.descriptionCell, styles.totalText]}>Total</Text>
                 <Text style={[styles.cell, styles.categoryCell, styles.totalText]}>—</Text>
                 <Text style={[styles.cell, styles.subCategoryCell, styles.totalText]}>—</Text>
                 <Text style={[styles.cell, styles.unitCell, styles.totalText]}>—</Text>
@@ -442,8 +502,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  itemNoCell: {
+    width: 80,
+    textAlign: 'center',
+  },
+
   descriptionCell: {
-    width: 200,
+    width: 250,
+    textAlign: 'justify',
   },
 
   categoryCell: {

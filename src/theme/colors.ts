@@ -8,4 +8,12 @@ export const colors = {
   BORDER_LIGHT: '#E0E0E0',
   ERROR_RED: '#FF4444',
   SUCCESS_GREEN: '#4CAF50',
+  
+  // Aliases for component compatibility
+  primary: '#1E90FF',
+  background: '#F9FAFB',
+  text: '#222222',
+  textSecondary: '#666666',
+  error: '#FF4444',
+  success: '#4CAF50',
 };

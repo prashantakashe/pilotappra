@@ -3,7 +3,7 @@
  * Handles saving parsed BOQ, rate revisions, and rate builder data
  */
 
-import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, Timestamp, collection, setDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import type { StandardBOQRow } from './boqParser';
 import type { RateRevision } from '../components/RateBuilder';
@@ -33,47 +33,140 @@ export async function saveParsedBoq(
       tenderId,
       rowCount: parsedBoq.length,
       userId: auth.currentUser.uid,
+      fileName: boqFileUrl,
     });
 
     const tenderRef = doc(db, 'tenders', tenderId);
 
-    // Fetch existing files list to support multiple BOQs
-    const snap = await getDoc(tenderRef);
-    const data = snap.exists() ? snap.data() as any : {};
-    const existingFiles: any[] = Array.isArray(data.boqFiles) ? data.boqFiles : [];
-
-    // Replace or append the file entry
-    const idx = existingFiles.findIndex(f => f?.name === boqFileUrl);
-    const fileEntry = {
-      name: boqFileUrl,
-      rows: parsedBoq,
-      report: {
-        suggestedMapping: boqHeaders || {},
-        sheets: boqSheets || [],
-        rowsParsed: parsedBoq.length,
-      }
-    };
-    let updatedFiles: any[];
-    if (idx >= 0) {
-      updatedFiles = [...existingFiles];
-      updatedFiles[idx] = fileEntry;
-    } else {
-      updatedFiles = [...existingFiles, fileEntry];
+    // First, verify the tender exists
+    const tenderSnap = await getDoc(tenderRef);
+    if (!tenderSnap.exists()) {
+      throw new Error(`Tender document ${tenderId} does not exist`);
     }
 
-    const updateData = {
-      // Keep backward-compatible single fields for current selection
-      parsedBoq: parsedBoq,
-      parsedAt: Timestamp.now(),
-      parsedBy: auth.currentUser.uid,
-      boqFileUrl: boqFileUrl || null,
-      boqHeaders: boqHeaders || {},
-      boqSheets: boqSheets || [],
-      // New multi-file field
-      boqFiles: updatedFiles,
-    };
+    console.log('[firestoreBoqApi] Tender exists, proceeding with save');
 
-    await updateDoc(tenderRef, updateData);
+    // Fetch existing files list to support multiple BOQs
+    const data = tenderSnap.data() as any;
+    const existingFiles: any[] = Array.isArray(data.boqFiles) ? data.boqFiles : [];
+
+    // Check if BOQ is too large for inline storage (> 500 items use subcollection)
+    const useLargeFileStorage = parsedBoq.length > 500;
+
+    if (useLargeFileStorage) {
+      console.log('[firestoreBoqApi] Large BOQ detected - using subcollection storage');
+      
+      // Save to subcollection: tenders/{tenderId}/boqItems/{fileId}/chunks/{chunkId}
+      const fileId = boqFileUrl.replace(/[^a-zA-Z0-9]/g, '_'); // sanitize filename for Firestore ID
+      const boqItemsRef = collection(db, 'tenders', tenderId, 'boqItems');
+      const fileDocRef = doc(boqItemsRef, fileId);
+      
+      // Save file metadata
+      await setDoc(fileDocRef, {
+        name: boqFileUrl,
+        rowCount: parsedBoq.length,
+        createdAt: Timestamp.now(),
+        createdBy: auth.currentUser.uid,
+        report: {
+          suggestedMapping: boqHeaders || {},
+          sheets: boqSheets || [],
+          rowsParsed: parsedBoq.length,
+        }
+      });
+
+      // Split into chunks of 100 items each to avoid document size limits
+      const chunkSize = 100;
+      const chunks = [];
+      for (let i = 0; i < parsedBoq.length; i += chunkSize) {
+        chunks.push(parsedBoq.slice(i, i + chunkSize));
+      }
+
+      console.log(`[firestoreBoqApi] Splitting ${parsedBoq.length} rows into ${chunks.length} chunks`);
+
+      // Save each chunk as a separate document
+      const chunksRef = collection(fileDocRef, 'chunks');
+      const batch = writeBatch(db);
+      
+      chunks.forEach((chunk, index) => {
+        const chunkDocRef = doc(chunksRef, `chunk_${index}`);
+        batch.set(chunkDocRef, {
+          chunkIndex: index,
+          rows: chunk,
+          rowCount: chunk.length
+        });
+      });
+
+      await batch.commit();
+      console.log(`[firestoreBoqApi] Saved ${chunks.length} chunks to subcollection`);
+
+      // Update file entry to reference subcollection
+      const idx = existingFiles.findIndex(f => f?.name === boqFileUrl);
+      const fileEntry = {
+        name: boqFileUrl,
+        rowCount: parsedBoq.length,
+        usesSubcollection: true,
+        fileId: fileId,
+        report: {
+          suggestedMapping: boqHeaders || {},
+          sheets: boqSheets || [],
+          rowsParsed: parsedBoq.length,
+        }
+      };
+      
+      let updatedFiles: any[];
+      if (idx >= 0) {
+        updatedFiles = [...existingFiles];
+        updatedFiles[idx] = fileEntry;
+      } else {
+        updatedFiles = [...existingFiles, fileEntry];
+      }
+
+      const updateData = {
+        parsedAt: Timestamp.now(),
+        parsedBy: auth.currentUser.uid,
+        boqFileUrl: boqFileUrl || null,
+        boqHeaders: boqHeaders || {},
+        boqSheets: boqSheets || [],
+        boqFiles: updatedFiles,
+        // Don't store parsedBoq inline for large files
+      };
+
+      await updateDoc(tenderRef, updateData);
+
+    } else {
+      // Small BOQ - use inline storage (original method)
+      console.log('[firestoreBoqApi] Small BOQ - using inline storage');
+      
+      const idx = existingFiles.findIndex(f => f?.name === boqFileUrl);
+      const fileEntry = {
+        name: boqFileUrl,
+        rows: parsedBoq,
+        report: {
+          suggestedMapping: boqHeaders || {},
+          sheets: boqSheets || [],
+          rowsParsed: parsedBoq.length,
+        }
+      };
+      let updatedFiles: any[];
+      if (idx >= 0) {
+        updatedFiles = [...existingFiles];
+        updatedFiles[idx] = fileEntry;
+      } else {
+        updatedFiles = [...existingFiles, fileEntry];
+      }
+
+      const updateData = {
+        parsedBoq: parsedBoq,
+        parsedAt: Timestamp.now(),
+        parsedBy: auth.currentUser.uid,
+        boqFileUrl: boqFileUrl || null,
+        boqHeaders: boqHeaders || {},
+        boqSheets: boqSheets || [],
+        boqFiles: updatedFiles,
+      };
+
+      await updateDoc(tenderRef, updateData);
+    }
 
     console.log('[firestoreBoqApi] ✅ Parsed BOQ saved successfully');
     return { success: true, message: `Saved ${parsedBoq.length} BOQ items` };
@@ -270,10 +363,40 @@ export async function checkTenderEditPermission(tenderId: string): Promise<boole
   }
 }
 
+/**
+ * Loads BOQ items from subcollection for large files
+ * Path: tenders/{tenderId}/boqItems/{fileId}/chunks/{chunkId}
+ */
+export async function loadBoqFromSubcollection(tenderId: string, fileId: string): Promise<StandardBOQRow[]> {
+  try {
+    console.log('[firestoreBoqApi] Loading BOQ from subcollection:', { tenderId, fileId });
+
+    const chunksRef = collection(db, 'tenders', tenderId, 'boqItems', fileId, 'chunks');
+    const { getDocs, query, orderBy } = await import('firebase/firestore');
+    const chunksQuery = query(chunksRef, orderBy('chunkIndex'));
+    const chunksSnap = await getDocs(chunksQuery);
+
+    const allRows: StandardBOQRow[] = [];
+    chunksSnap.forEach(chunkDoc => {
+      const chunkData = chunkDoc.data();
+      if (chunkData.rows && Array.isArray(chunkData.rows)) {
+        allRows.push(...chunkData.rows);
+      }
+    });
+
+    console.log(`[firestoreBoqApi] ✅ Loaded ${allRows.length} rows from ${chunksSnap.size} chunks`);
+    return allRows;
+  } catch (error: any) {
+    console.error('[firestoreBoqApi] ❌ Failed to load BOQ from subcollection:', error);
+    throw error;
+  }
+}
+
 export default {
   saveParsedBoq,
   saveRevisionForItem,
   getTenderWithParsedBoq,
   updateEntireParsedBoq,
   checkTenderEditPermission,
+  loadBoqFromSubcollection,
 };

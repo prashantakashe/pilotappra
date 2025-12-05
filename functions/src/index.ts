@@ -14,6 +14,19 @@ const corsHandler = cors({
 // Export migration function
 export { migrateTendersAddStage1 } from './migrateTenders';
 
+// Export Daily Work Status reminder functions
+export { 
+  sendDailyWorkStatusReminders, 
+  triggerDailyWorkStatusReminders,
+  generateDailySummaryReport,
+  sendTestEmail,
+  generateDelayAnalysisReport,
+  triggerDelayAnalysisReport
+} from './dailyWorkStatusReminders';
+
+// Export Direct Email Service
+export { sendDirectTestEmail, sendTestEmailHttp } from './emailService';
+
 /**
  * Cloud Function to handle mediated messages
  * This function validates the user and creates message documents

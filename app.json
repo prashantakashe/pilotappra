@@ -1,21 +1,31 @@
 {
   "expo": {
-    "name": "My App",
+    "name": "App Pilot",
     "slug": "myapp",
     "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTabletMode": true,
-      "supportsMultitasking": true
+      "supportsMultitasking": true,
+      "bundleIdentifier": "com.example.myapp"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.example.myapp"
+      "package": "com.example.myapp",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -24,6 +34,11 @@
         "devtool": false
       }
     },
-    "scheme": "myapp"
+    "scheme": "myapp",
+    "extra": {
+      "eas": {
+        "projectId": "07e9fb09-3c83-473d-a987-ff88582f8927"
+      }
+    }
   }
 }

@@ -53,6 +53,7 @@ export interface DWSSubActivity {
   id: string;
   description: string;
   assignedTo: string;
+  targetDate?: Date;
   hours: number;
   status: string;
   statusUpdates: DWSStatusUpdate[];
@@ -66,6 +67,7 @@ export interface DWSDailyEntry {
   date: Date;
   dateTime: string;
   mainActivity: string;
+  targetDate?: Date;
   assignedTo: string;
   hours: number;
   finalStatus: string;
@@ -83,6 +85,7 @@ export interface DWSReportFilter {
   userId?: string;
   startDate?: Date;
   endDate?: Date;
+  filterBy?: 'entryDate' | 'statusUpdateDate'; // Filter by entry creation date or status update date
 }
 
 // Dashboard metrics

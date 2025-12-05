@@ -10,10 +10,11 @@ import {
   DWSDailyEntryTab,
   DWSReportTab,
   DWSDashboardTab,
-  DWSUserManagementTab
+  DWSUserManagementTab,
+  DWSReminderSettingsTab
 } from '../components/dailyWorkStatus';
 
-type DWSTab = 'DWSMaster' | 'DWSDaily' | 'DWSReport' | 'DWSDashboard' | 'DWSUsers';
+type DWSTab = 'DWSMaster' | 'DWSDaily' | 'DWSReport' | 'DWSDashboard' | 'DWSUsers' | 'DWSReminders';
 
 interface DailyWorkStatusScreenProps {
   navigation: any;
@@ -25,7 +26,8 @@ interface DailyWorkStatusScreenProps {
  */
 const DailyWorkStatusScreen: React.FC<DailyWorkStatusScreenProps> = ({ navigation }) => {
   const [userName, setUserName] = useState('User');
-  const [activeTab, setActiveTab] = useState<DWSTab>('DWSMaster');
+  const [activeTab, setActiveTab] = useState<DWSTab>('DWSDashboard');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const { user } = useContext(AuthContext)!;
 
   useEffect(() => {
@@ -54,6 +56,10 @@ const DailyWorkStatusScreen: React.FC<DailyWorkStatusScreenProps> = ({ navigatio
       navigation.navigate('MainNew');
     } else if (key.startsWith('DWS')) {
       setActiveTab(key as DWSTab);
+      // Clear status filter when manually navigating
+      if (key === 'DWSDaily') {
+        setStatusFilter('');
+      }
     }
   };
 
@@ -65,6 +71,7 @@ const DailyWorkStatusScreen: React.FC<DailyWorkStatusScreenProps> = ({ navigatio
       case 'DWSReport': return 'Daily Work Status - Report';
       case 'DWSDashboard': return 'Daily Work Status - Dashboard';
       case 'DWSUsers': return 'Daily Work Status - User Management';
+      case 'DWSReminders': return 'Daily Work Status - Reminder Settings';
       default: return 'Daily Work Status';
     }
   };
@@ -75,13 +82,18 @@ const DailyWorkStatusScreen: React.FC<DailyWorkStatusScreenProps> = ({ navigatio
       case 'DWSMaster':
         return <DWSMasterDataTab />;
       case 'DWSDaily':
-        return <DWSDailyEntryTab />;
+        return <DWSDailyEntryTab key={statusFilter} initialFilter={statusFilter} />;
       case 'DWSReport':
         return <DWSReportTab />;
       case 'DWSDashboard':
-        return <DWSDashboardTab />;
+        return <DWSDashboardTab onNavigate={(tab: DWSTab, filter?: string) => {
+          setActiveTab(tab);
+          setStatusFilter(filter || '');
+        }} />;
       case 'DWSUsers':
         return <DWSUserManagementTab />;
+      case 'DWSReminders':
+        return <DWSReminderSettingsTab />;
       default:
         return <DWSMasterDataTab />;
     }
