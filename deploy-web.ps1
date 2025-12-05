@@ -27,8 +27,8 @@ if (Test-Path "dist") {
     }
     # Clean web-build first
     Remove-Item web-build/* -Recurse -Force -ErrorAction SilentlyContinue
-    # Copy dist contents
-    Copy-Item -Recurse -Force dist/* web-build/ -ErrorAction SilentlyContinue
+    # Copy all dist contents including hidden folders
+    Get-ChildItem -Path "dist" -Force | Copy-Item -Destination "web-build" -Recurse -Force -ErrorAction SilentlyContinue
     # Add .nojekyll file for GitHub Pages
     New-Item -ItemType File -Path "web-build/.nojekyll" -Force | Out-Null
 }
