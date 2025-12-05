@@ -9,7 +9,6 @@ npm-debug.*
 *.key
 *.mobileprovision
 *.orig.*
-web-build/
 
 # Dependencies
 node_modules/
