@@ -40,6 +40,9 @@ jobs:
         EXPO_NO_DOTENV: 1
         CI: true
     
+    - name: Add .nojekyll file
+      run: touch dist/.nojekyll
+    
     - name: Setup Pages
       uses: actions/configure-pages@v4
     
