@@ -32,10 +32,13 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm install
+      run: npm ci
     
     - name: Build web app
-      run: npx expo export --platform web --output-dir web-build
+      run: npx expo export --platform web
+      env:
+        EXPO_NO_DOTENV: 1
+        CI: true
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
@@ -43,7 +46,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: './web-build'
+        path: './dist'
     
     - name: Deploy to GitHub Pages
       id: deployment
