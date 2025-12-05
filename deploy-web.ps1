@@ -9,6 +9,18 @@ param(
 Write-Host "🚀 Starting deployment process..." -ForegroundColor Cyan
 Write-Host ""
 
+# Step 0: Build web app if not skipped
+if (-not $SkipBuild) {
+    Write-Host "🔨 Building web application..." -ForegroundColor Yellow
+    npx expo export --platform web
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Build failed" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✅ Build completed successfully" -ForegroundColor Green
+    Write-Host ""
+}
+
 # Step 1: Check for changes
 Write-Host "📋 Checking for changes..." -ForegroundColor Yellow
 git status --short
@@ -66,12 +78,12 @@ Write-Host ""
 Write-Host "🌐 Your site will be updated at:" -ForegroundColor Cyan
 Write-Host "   https://prashantakashe.github.io/pilotappra/" -ForegroundColor Blue
 Write-Host ""
-Write-Host "⏱️  Deployment typically takes 2-3 minutes to complete" -ForegroundColor Yellow
+Write-Host "⏱️  Deployment typically takes 30-60 seconds to complete" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "💡 Tips:" -ForegroundColor Cyan
 Write-Host "   - Clear browser cache after deployment (Ctrl+Shift+R)" -ForegroundColor Gray
-Write-Host "   - Check GitHub Actions for build status" -ForegroundColor Gray
-Write-Host "   - Wait 2-3 minutes before checking the live site" -ForegroundColor Gray
+Write-Host "   - Check GitHub Actions for deployment status" -ForegroundColor Gray
+Write-Host "   - Wait ~1 minute before checking the live site" -ForegroundColor Gray
 Write-Host ""
 
 exit 0
