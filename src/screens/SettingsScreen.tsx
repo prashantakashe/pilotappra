@@ -87,27 +87,35 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       addLog('2. Run the deployment script:');
       addLog('   .\\deploy-web.ps1');
       addLog('');
-      addLog('This script will:');
-      addLog('  ✓ Build web app (npx expo export --platform web)');
-      addLog('  ✓ Stage all changes (git add .)');
-      addLog('  ✓ Commit changes');
-      addLog('  ✓ Push to GitHub');
-      addLog('  ✓ Deploy to GitHub Pages automatically');
+      addLog('This script automatically:');
+      addLog('  ✓ Builds web app (npx expo export --platform web)');
+      addLog('  ✓ Copies dist to web-build folder');
+      addLog('  ✓ Fixes _expo paths (/_expo → ./_expo)');
+      addLog('  ✓ Adds .nojekyll file for GitHub Pages');
+      addLog('  ✓ Stages all changes (git add .)');
+      addLog('  ✓ Commits with timestamp');
+      addLog('  ✓ Pushes to GitHub (triggers deployment)');
       addLog('');
       addLog('OPTION 2 - MANUAL STEPS:');
       addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       addLog('1. npx expo export --platform web');
-      addLog('2. git add .');
-      addLog('3. git commit -m "Deploy: ' + new Date().toLocaleString() + '"');
-      addLog('4. git push origin main');
+      addLog('2. Copy dist folder contents to web-build');
+      addLog('3. Fix paths in web-build/index.html:');
+      addLog('   Change: src="/_expo/ → src="./_expo/');
+      addLog('4. Add web-build/.nojekyll file');
+      addLog('5. git add .');
+      addLog('6. git commit -m "Deploy: ' + new Date().toLocaleString() + '"');
+      addLog('7. git push origin main');
       addLog('');
-      addLog('📊 Monitor progress:');
+      addLog('⚠️ CRITICAL: Always use ./_expo (relative) not /_expo (absolute)');
+      addLog('');
+      addLog('📊 Monitor deployment:');
       addLog('   https://github.com/prashantakashe/pilotappra/actions');
       addLog('');
-      addLog('🌐 Live site (after ~1 minute):');
+      addLog('🌐 Live site (~1 minute):');
       addLog('   https://prashantakashe.github.io/pilotappra/');
       addLog('');
-      addLog('💡 Remember: Clear browser cache (Ctrl+Shift+R) after deployment');
+      addLog('💡 After deployment: Clear cache (Ctrl+Shift+R)');
       
       // Copy deployment command to clipboard
       try {
@@ -128,16 +136,23 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
         '   E:\\prashant\\APP_PILOT PROJECT\n\n' +
         '2. Run:\n' +
         '   .\\deploy-web.ps1\n\n' +
+        'Script automatically handles:\n' +
+        '  • Build web app\n' +
+        '  • Copy to web-build\n' +
+        '  • Fix _expo paths (CRITICAL!)\n' +
+        '  • Add .nojekyll\n' +
+        '  • Commit & push\n\n' +
         '══════════════════════════════\n' +
         'MANUAL STEPS:\n' +
         '══════════════════════════════\n\n' +
         '1. npx expo export --platform web\n' +
-        '2. git add .\n' +
-        '3. git commit -m "Deploy"\n' +
-        '4. git push origin main\n\n' +
+        '2. Copy dist/* to web-build/\n' +
+        '3. Fix index.html: /_expo → ./_expo\n' +
+        '4. Add web-build/.nojekyll\n' +
+        '5. git add . && git commit && git push\n\n' +
         '✅ Command copied to clipboard!\n' +
-        '⏱️ Deployment takes ~1 minute\n' +
-        '🔄 Clear cache after: Ctrl+Shift+R'
+        '⏱️ Deployment: ~1 minute\n' +
+        '🔄 Clear cache: Ctrl+Shift+R'
       );
 
     } catch (error: any) {
@@ -186,12 +201,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoTitle}>ℹ️ How deployment works:</Text>
-            <Text style={styles.infoText}>• Builds web app locally (npx expo export)</Text>
-            <Text style={styles.infoText}>• Stages all changes including build files</Text>
-            <Text style={styles.infoText}>• Commits with auto-generated timestamp</Text>
-            <Text style={styles.infoText}>• Pushes to GitHub repository</Text>
-            <Text style={styles.infoText}>• GitHub Actions deploys to GitHub Pages</Text>
-            <Text style={styles.infoText}>• Live site updates in ~1 minute</Text>
+            <Text style={styles.infoText}>• Builds web app → exports to dist folder</Text>
+            <Text style={styles.infoText}>• Copies dist contents to web-build folder</Text>
+            <Text style={styles.infoText}>• Fixes _expo paths (/_expo → ./_expo) ⚠️ CRITICAL</Text>
+            <Text style={styles.infoText}>• Adds .nojekyll file (prevents Jekyll processing)</Text>
+            <Text style={styles.infoText}>• Stages and commits all changes</Text>
+            <Text style={styles.infoText}>• Pushes to GitHub (triggers deployment)</Text>
+            <Text style={styles.infoText}>• GitHub Pages deploys in ~1 minute</Text>
           </View>
 
           <View style={styles.linkBox}>
