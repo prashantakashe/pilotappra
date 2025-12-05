@@ -19,6 +19,15 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Run manually: npx expo export --platform web" -ForegroundColor Gray
     exit 1
 }
+
+# Copy dist to web-build (Metro exports to dist, but GitHub Pages uses web-build)
+if (Test-Path "dist") {
+    if (-not (Test-Path "web-build")) {
+        New-Item -ItemType Directory -Path "web-build" -Force | Out-Null
+    }
+    Copy-Item -Recurse -Force dist/* web-build/ -ErrorAction SilentlyContinue
+}
+
 Write-Host "SUCCESS: Build completed" -ForegroundColor Green
 Write-Host ""
 
