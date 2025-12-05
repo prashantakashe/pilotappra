@@ -29,6 +29,15 @@ if (Test-Path "dist") {
     Remove-Item web-build/* -Recurse -Force -ErrorAction SilentlyContinue
     # Copy all dist contents including hidden folders
     Get-ChildItem -Path "dist" -Force | Copy-Item -Destination "web-build" -Recurse -Force -ErrorAction SilentlyContinue
+    
+    # Fix paths in index.html for GitHub Pages subdirectory (change /_expo to ./_expo)
+    $indexPath = "web-build/index.html"
+    if (Test-Path $indexPath) {
+        $content = Get-Content $indexPath -Raw
+        $content = $content -replace '="/_expo/', '="./_expo/'
+        Set-Content $indexPath -Value $content -NoNewline
+    }
+    
     # Add .nojekyll file for GitHub Pages
     New-Item -ItemType File -Path "web-build/.nojekyll" -Force | Out-Null
 }
