@@ -383,13 +383,46 @@ export const getAllEntries = async (): Promise<DWSDailyEntry[]> => {
 };
 
 /**
+ * Check and auto-update delayed status for entries
+ */
+const checkAndUpdateDelayedStatus = async (entry: DWSDailyEntry): Promise<DWSDailyEntry> => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Check if entry has a target date
+  if (entry.targetDate) {
+    const targetDate = toDate(entry.targetDate);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    // If target date has passed and status is not 'Completed', auto-set to 'Delayed'
+    if (targetDate < today && entry.status !== 'Completed' && entry.status !== 'Delayed') {
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ENTRIES, entry.id), {
+          status: 'Delayed',
+          updatedAt: Timestamp.now(),
+          updatedBy: getCurrentUserId()
+        });
+        return { ...entry, status: 'Delayed' };
+      } catch (error) {
+        console.error('[DWS Service] Error auto-updating delayed status:', error);
+      }
+    }
+  }
+  
+  return entry;
+};
+
+/**
  * Subscribe to daily entries
  */
-export const subscribeToEntries = (
+export const subscribeToDailyEntries = (
   callback: (entries: DWSDailyEntry[]) => void
 ): (() => void) => {
   const q = query(collection(db, COLLECTIONS.ENTRIES), orderBy('date', 'desc'));
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(q, async (snapshot) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const entries = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -415,6 +448,56 @@ export const subscribeToEntries = (
         }))
       } as DWSDailyEntry;
     });
+    
+    // Auto-update delayed status for main entries and sub-activities
+    for (const entry of entries) {
+      let needsUpdate = false;
+      const updates: any = {};
+      
+      // Check main activity
+      if (entry.targetDate) {
+        const targetDate = new Date(entry.targetDate);
+        targetDate.setHours(0, 0, 0, 0);
+        if (targetDate < today && entry.status !== 'Completed' && entry.status !== 'Delayed') {
+          updates.status = 'Delayed';
+          needsUpdate = true;
+        }
+      }
+      
+      // Check sub-activities
+      if (entry.subActivities && entry.subActivities.length > 0) {
+        const updatedSubActivities = entry.subActivities.map(sub => {
+          if (sub.targetDate) {
+            const subTargetDate = new Date(sub.targetDate);
+            subTargetDate.setHours(0, 0, 0, 0);
+            if (subTargetDate < today && sub.status !== 'Completed' && sub.status !== 'Delayed') {
+              needsUpdate = true;
+              return { ...sub, status: 'Delayed' };
+            }
+          }
+          return sub;
+        });
+        
+        if (updatedSubActivities.some((s, i) => s.status !== entry.subActivities![i].status)) {
+          updates.subActivities = updatedSubActivities;
+          needsUpdate = true;
+        }
+      }
+      
+      // Apply updates if needed
+      if (needsUpdate && Object.keys(updates).length > 0) {
+        try {
+          await updateDoc(doc(db, COLLECTIONS.ENTRIES, entry.id), {
+            ...updates,
+            updatedAt: Timestamp.now(),
+            updatedBy: getCurrentUserId()
+          });
+        } catch (error) {
+          console.error('[DWS Service] Error auto-updating delayed status:', error);
+        }
+      }
+    }
+    
     callback(entries);
   }, (error) => {
     console.error('[DWS Service] Error subscribing to entries:', error);

@@ -55,7 +55,7 @@ export const PROJECTS_NAV: MenuItem[] = [
 
 // Daily Work Status module sub-navigation
 export const DAILY_WORK_STATUS_NAV: MenuItem[] = [
-  { key: 'DWSDashboard', label: 'Dashboard', icon: '📈' },
+  { key: 'DWSDashboard', label: 'Dashboard', icon: '📊' },
   { key: 'DWSDaily', label: 'Daily Entry', icon: '📝' },
   { key: 'DWSMaster', label: 'Master Data', icon: '📁' }, // Admin only
   { key: 'DWSReport', label: 'Report', icon: '📊' },

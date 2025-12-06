@@ -333,29 +333,31 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
         }
         [title]:hover::after {
           content: attr(title);
-          position: absolute;
-          bottom: 100%;
+          position: fixed;
+          bottom: auto;
+          top: auto;
           left: 50%;
-          transform: translateX(-50%);
+          transform: translate(-50%, -120%);
           background-color: rgba(0, 0, 0, 0.85);
           color: white;
           padding: 6px 10px;
           borderRadius: 4px;
           white-space: nowrap;
           fontSize: 12px;
-          z-index: 10000;
+          z-index: 999999;
           pointer-events: none;
           margin-bottom: 5px;
         }
         [title]:hover::before {
           content: '';
-          position: absolute;
-          bottom: 100%;
+          position: fixed;
+          bottom: auto;
+          top: auto;
           left: 50%;
-          transform: translateX(-50%);
+          transform: translate(-50%, -40%);
           border: 5px solid transparent;
           border-top-color: rgba(0, 0, 0, 0.85);
-          z-index: 10000;
+          z-index: 999999;
           pointer-events: none;
         }
       `;
