@@ -846,7 +846,7 @@ export const dailyWorkStatusService = {
   
   // Entries
   getAllEntries,
-  subscribeToEntries,
+  subscribeToEntries: subscribeToDailyEntries,
   getEntriesByDateRange,
   getTodayEntries,
   addEntry,
