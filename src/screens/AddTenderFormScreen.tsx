@@ -391,7 +391,9 @@ export const AddTenderFormScreen: React.FC = () => {
 
   const { isMobile, isTablet, isDesktop } = useResponsive();
   const columns = isDesktop ? 3 : isTablet ? 2 : 1;
-  const colWidth = `${100 / columns}%`;
+  const colWidth = Platform.OS === 'web' 
+    ? `${100 / columns}%` as any
+    : { flex: 1 / columns };
 
   useEffect(() => {
     console.log('[AddTenderFormScreen] useEffect mounted');

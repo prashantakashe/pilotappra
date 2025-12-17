@@ -9,11 +9,15 @@ import { tenderService } from '../services/tenderService';
 interface RateAnalysisTenderCardProps {
   tender: Tender;
   onPress: () => void;
+  onPressMarket?: () => void;
+  onPressSSR?: () => void;
 }
 
 export const RateAnalysisTenderCard: React.FC<RateAnalysisTenderCardProps> = ({
   tender,
-  onPress
+  onPress,
+  onPressMarket,
+  onPressSSR
 }) => {
   const daysRemaining = dateUtils.getDaysRemaining(tender.submissionDeadline);
   const urgencyColor = dateUtils.getDeadlineUrgencyColor(daysRemaining);
@@ -177,10 +181,27 @@ export const RateAnalysisTenderCard: React.FC<RateAnalysisTenderCardProps> = ({
         </View>
       )}
       
-      {/* Open Button */}
-      <TouchableOpacity style={styles.openButton} onPress={onPress}>
-        <Text style={styles.openButtonText}>Open →</Text>
-      </TouchableOpacity>
+      {/* Action Buttons - Market RA and SSR RA */}
+      {onPressMarket && onPressSSR ? (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={[styles.raButton, styles.marketButton]} 
+            onPress={onPressMarket}
+          >
+            <Text style={styles.raButtonText}>📊 Market RA</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.raButton, styles.ssrButton]} 
+            onPress={onPressSSR}
+          >
+            <Text style={styles.raButtonText}>📈 SSR RA</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.openButton} onPress={onPress}>
+          <Text style={styles.openButtonText}>Open →</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -326,5 +347,32 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 6,
+  }
+  ,
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 8,
+  },
+  raButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  marketButton: {
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE'
+  },
+  ssrButton: {
+    backgroundColor: '#FEF3F2',
+    borderWidth: 1,
+    borderColor: '#FECACA'
+  },
+  raButtonText: {
+    fontWeight: '700',
+    color: '#111827'
   }
 });

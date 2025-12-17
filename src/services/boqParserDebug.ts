@@ -9,7 +9,7 @@ import { parseBoqFile } from './boqParser';
 /**
  * Create a simple test BOQ buffer
  */
-export function createSimpleTestBOQ(): ArrayBuffer {
+export function createSimpleTestBOQ(): Uint8Array {
   const data = [
     ['Sr. No.', 'Description', 'Unit', 'Quantity', 'Rate', 'Amount'],
     ['1', 'Excavation for foundation', 'Cum', '120', '1584', '190080'],
@@ -31,7 +31,7 @@ export function createSimpleTestBOQ(): ArrayBuffer {
 /**
  * Create a complex test BOQ with multi-line descriptions
  */
-export function createComplexTestBOQ(): ArrayBuffer {
+export function createComplexTestBOQ(): Uint8Array {
   const data = [
     ['Sr. No.', 'Description', 'Unit', 'Quantity', 'Rate', 'Amount'],
     ['1', 'Excavation for foundation', 'Cum', '120', '1584', '190080'],
@@ -60,7 +60,7 @@ export async function testParser() {
     const buffer = createSimpleTestBOQ();
     console.log('[TEST] Created sample BOQ buffer:', buffer.byteLength, 'bytes');
     
-    const result = await parseBoqFile(buffer, 'test.xlsx');
+    const result = await parseBoqFile(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), 'test.xlsx');
     
     console.log('[TEST] Parse result:');
     console.log('  - Rows parsed:', result.parseReport.rowsParsed);
@@ -111,7 +111,7 @@ export async function testComplexParser() {
     const buffer = createComplexTestBOQ();
     console.log('[TEST] Created complex BOQ buffer:', buffer.byteLength, 'bytes');
     
-    const result = await parseBoqFile(buffer, 'complex_test.xlsx');
+    const result = await parseBoqFile(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), 'complex_test.xlsx');
     
     console.log('[TEST] Parse result:');
     console.log('  - Rows parsed:', result.parseReport.rowsParsed);

@@ -214,7 +214,7 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: '100%' }]}> 
       {/* Add Revision Button - Small Size */}
       <View style={styles.buttonBar}>
         <TouchableOpacity
@@ -309,107 +309,77 @@ export const ParsedBoqTablePhase2_1: React.FC<ParsedBoqTableProps> = ({
         style={styles.bodyHorizontalScroll}
         removeClippedSubviews={false}
       >
-        <View style={styles.tableContentWrapper}>
+        <View style={[styles.tableContentWrapper, { width: '100%' }]}> 
           <ScrollView 
-            style={styles.rowsContainer} 
-            scrollEnabled={true} 
-            showsVerticalScrollIndicator={true}
+            style={[styles.rowsContainer, itemsToDisplayWithIndex.length > 10 ? { maxHeight: 500 } : { maxHeight: undefined }]}
+            scrollEnabled={itemsToDisplayWithIndex.length > 10}
+            showsVerticalScrollIndicator={itemsToDisplayWithIndex.length > 10}
             nestedScrollEnabled={true}
             removeClippedSubviews={false}
           >
-          {itemsToDisplayWithIndex.length > 0 ? (
-            <>
-              {itemsToDisplayWithIndex.map(({ row: item, originalIndex }, filteredIndex) => (
-                <View
-                  key={`${item.srNo}-${originalIndex}`}
-                  style={[styles.tableRow, { width: tableWidth }]}
-                >
-                  {/* Base Columns */}
-                  <Text style={[styles.cell, styles.srNoCell]}>{filteredIndex + 1}</Text>
-                  <Text style={[styles.cell, styles.itemNoCell]}>{item.itemNo || '—'}</Text>
-                  <Text
-                    style={[styles.cell, styles.descriptionCell]}
-                  >
-                    {item.description || '—'}
-                  </Text>
-                  <Text
-                    style={[styles.cell, styles.categoryCell]}
-                    numberOfLines={1}
-                  >
-                    {item.category || '—'}
-                  </Text>
-                  <Text
-                    style={[styles.cell, styles.subCategoryCell]}
-                    numberOfLines={1}
-                  >
-                    {item.subCategory || '—'}
-                  </Text>
-                  <Text style={[styles.cell, styles.unitCell]}>
-                    {item.unit || '—'}
-                  </Text>
-                  <Text style={[styles.cell, styles.quantityCell]}>
-                    {formatQuantity(item.quantity)}
-                  </Text>
-                  <Text style={[styles.cell, styles.rateCell]}>
-                    {item.tenderRate ? formatCurrency(item.tenderRate) : '—'}
-                  </Text>
-                  <Text style={[styles.cell, styles.amountCell]}>
-                    {getOriginalAmountDisplay(item)}
-                  </Text>
+            {(itemsToDisplayWithIndex.length > 0 ? itemsToDisplayWithIndex : [{ row: {}, originalIndex: 0 }]).map(({ row: item, originalIndex }, filteredIndex) => (
+              <View
+                key={`${item.srNo || 'empty'}-${originalIndex}`}
+                style={[styles.tableRow, { width: tableWidth }]}
+              >
+                {/* Base Columns */}
+                <Text style={[styles.cell, styles.srNoCell]}>{filteredIndex + 1}</Text>
+                <Text style={[styles.cell, styles.itemNoCell]}>{item.itemNo || '—'}</Text>
+                <Text style={[styles.cell, styles.descriptionCell]}>{item.description || '—'}</Text>
+                <Text style={[styles.cell, styles.categoryCell]} numberOfLines={1}>{item.category || '—'}</Text>
+                <Text style={[styles.cell, styles.subCategoryCell]} numberOfLines={1}>{item.subCategory || '—'}</Text>
+                <Text style={[styles.cell, styles.unitCell]}>{item.unit || '—'}</Text>
+                <Text style={[styles.cell, styles.quantityCell]}>{formatQuantity(item.quantity)}</Text>
+                <Text style={[styles.cell, styles.rateCell]}>{item.tenderRate ? formatCurrency(item.tenderRate) : '—'}</Text>
+                <Text style={[styles.cell, styles.amountCell]}>{getOriginalAmountDisplay(item)}</Text>
 
-                  {/* Revision Columns */}
-                  {activeRevisions.map((revisionKey) => (
-                    <View key={`${originalIndex}-${revisionKey}`} style={styles.revisionCellGroup}>
-                      <View style={[styles.cell, styles.revisionRateCell]}>
-                        {getRateDisplay(item, originalIndex, revisionKey)}
-                      </View>
-                      <Text style={[styles.cell, styles.revisionAmountCell]}>
-                        {getRevisionAmountDisplay(item, revisionKey)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-
-              {/* Totals Row (only amounts) */}
-              <View style={[styles.totalRow, { width: tableWidth }]}>
-                <Text style={[styles.cell, styles.srNoCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.itemNoCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.descriptionCell, styles.totalText]}>Total</Text>
-                <Text style={[styles.cell, styles.categoryCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.subCategoryCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.unitCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.quantityCell, styles.totalText]}>—</Text>
-                <Text style={[styles.cell, styles.rateCell, styles.totalText]}>Total</Text>
-                <Text style={[styles.cell, styles.amountCell, styles.totalText]}>
-                  {formatCurrency(calculateTotalAmount())}
-                </Text>
-
-                {/* Revision Totals */}
+                {/* Revision Columns */}
                 {activeRevisions.map((revisionKey) => (
-                  <View key={`total-${revisionKey}`} style={styles.revisionCellGroup}>
-                    <Text style={[styles.cell, styles.revisionRateCell, styles.totalText]}>Total</Text>
-                    <Text style={[styles.cell, styles.revisionAmountCell, styles.totalText]}>
-                      {formatCurrency(
-                        itemsToDisplayWithIndex.reduce((sum, { row }) => {
-                          const revision = (row.revisions as any)?.[revisionKey];
-                          if (revision && revision.rate) {
-                            return sum + revision.rate * (row.quantity || 0);
-                          }
-                          return sum;
-                        }, 0)
-                      )}
+                  <View key={`${originalIndex}-${revisionKey}`} style={styles.revisionCellGroup}>
+                    <View style={[styles.cell, styles.revisionRateCell]}>
+                      {getRateDisplay(item, originalIndex, revisionKey)}
+                    </View>
+                    <Text style={[styles.cell, styles.revisionAmountCell]}>
+                      {getRevisionAmountDisplay(item, revisionKey)}
                     </Text>
                   </View>
                 ))}
               </View>
-            </>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No BOQ items to display</Text>
+            ))}
+
+            {/* Totals Row (only amounts) */}
+            <View style={[styles.totalRow, { width: tableWidth }]}> 
+              <Text style={[styles.cell, styles.srNoCell, styles.totalText]}>—</Text>
+              <Text style={[styles.cell, styles.itemNoCell, styles.totalText]}>—</Text>
+              <Text style={[styles.cell, styles.descriptionCell, styles.totalText]}>Total</Text>
+              <Text style={[styles.cell, styles.categoryCell, styles.totalText]}>—</Text>
+              <Text style={[styles.cell, styles.subCategoryCell, styles.totalText]}>—</Text>
+              <Text style={[styles.cell, styles.unitCell, styles.totalText]}>—</Text>
+              <Text style={[styles.cell, styles.quantityCell, styles.totalText]}>—</Text>
+              <Text style={[styles.cell, styles.rateCell, styles.totalText]}>Total</Text>
+              <Text style={[styles.cell, styles.amountCell, styles.totalText]}>
+                {formatCurrency(calculateTotalAmount())}
+              </Text>
+
+              {/* Revision Totals */}
+              {activeRevisions.map((revisionKey) => (
+                <View key={`total-${revisionKey}`} style={styles.revisionCellGroup}>
+                  <Text style={[styles.cell, styles.revisionRateCell, styles.totalText]}>Total</Text>
+                  <Text style={[styles.cell, styles.revisionAmountCell, styles.totalText]}>
+                    {formatCurrency(
+                      itemsToDisplayWithIndex.reduce((sum, { row }) => {
+                        const revision = (row.revisions as any)?.[revisionKey];
+                        if (revision && revision.rate) {
+                          return sum + revision.rate * (row.quantity || 0);
+                        }
+                        return sum;
+                      }, 0)
+                    )}
+                  </Text>
+                </View>
+              ))}
             </View>
-          )}
-        </ScrollView>
+          </ScrollView>
         </View>
       </ScrollView>
     </View>
@@ -427,8 +397,8 @@ const styles = StyleSheet.create({
   },
 
   stickyHeaderContainer: {
-    position: 'sticky',
-    top: 0,
+    // position: 'sticky' is not supported in React Native
+    // Use zIndex for layering instead
     zIndex: 10,
     backgroundColor: '#fff',
   },
@@ -616,6 +586,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 3,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   rateValueTouchable: {
     backgroundColor: '#fffde7',
     borderWidth: 1,
@@ -623,8 +596,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     paddingVertical: 3,
     paddingHorizontal: 6,
-  },
-    alignItems: 'center',
   },
 
   rateButtonText: {

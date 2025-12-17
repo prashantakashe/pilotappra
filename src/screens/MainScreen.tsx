@@ -66,7 +66,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ navigation, children }) => {
       <TopBar
         title="Dashboard"
         onBurgerPress={() => setSidebarOpen(!sidebarOpen)}
-        onProfilePress={() => navigation.navigate('Profile')}
+        onAvatarPress={() => navigation.navigate('Profile')}
         userName={user?.email || 'User'}
       />
 

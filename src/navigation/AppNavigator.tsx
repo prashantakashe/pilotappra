@@ -10,10 +10,11 @@ import RateAnalysisScreen from '../screens/RateAnalysisScreen';
 import { RateAnalysisList } from '../screens/RateAnalysisList';
 import { RateAnalysisTenderDetail } from '../screens/RateAnalysisTenderDetail';
 import { MasterRateDataScreen } from '../screens/MasterRateDataScreen';
-import { SSRDSRScreen } from '../screens/SSRDSRScreen';
 import EngineeringScreen from '../screens/EngineeringScreen';
 import EscalationBillScreen from '../screens/EscalationBillScreen';
 import ProjectsScreen from '../screens/ProjectsScreen';
+import ReportsScreen from '../screens/ReportsScreen';
+import ProjectViewScreen from '../screens/ProjectViewScreen';
 import DailyWorkStatusScreen from '../screens/DailyWorkStatusScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -29,14 +30,14 @@ export type AppStackParamList = {
   TenderDetail: { tenderId: string };
   AddTenderForm: undefined;
   RateAnalysis: undefined;
-  RateAnalysisTenderDetail: { tenderId: string };
+  RateAnalysisTenderDetail: { tenderId: string; mode?: 'market' | 'ssr' };
   RateAnalysisOld: undefined;
   MasterRateData: undefined;
-  SSRDSR: undefined;
   MasterRateDatabase: undefined;
   Engineering: undefined;
   EscalationBill: undefined;
   Projects: undefined;
+  ProjectViewScreen: { projectId: string };
   DailyWorkStatus: undefined;
   Settings: undefined;
   Profile: undefined;
@@ -101,11 +102,7 @@ export const AppNavigator: React.FC = () => {
         component={MasterRateDataScreen}
         options={{ title: 'Master Rate Data' }}
       />
-      <Stack.Screen
-        name="SSRDSR"
-        component={SSRDSRScreen}
-        options={{ title: 'SSR/DSR' }}
-      />
+      {/* SSR/DSR module removed - implement elsewhere */}
       <Stack.Screen
         name="MasterRateDatabase"
         component={MasterRateDatabaseScreen}
@@ -125,6 +122,16 @@ export const AppNavigator: React.FC = () => {
         name="Projects"
         component={ProjectsScreen}
         options={{ title: 'Projects' }}
+      />
+      <Stack.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={{ title: 'Reports' }}
+      />
+      <Stack.Screen
+        name="ProjectViewScreen"
+        component={ProjectViewScreen}
+        options={{ title: 'Project View' }}
       />
       <Stack.Screen
         name="DailyWorkStatus"

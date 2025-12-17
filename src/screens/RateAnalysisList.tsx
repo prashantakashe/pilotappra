@@ -56,7 +56,12 @@ export const RateAnalysisList: React.FC<RateAnalysisListProps> = ({ navigation }
   };
 
   const renderTenderCard = ({ item }: { item: Tender }) => (
-    <RateAnalysisTenderCard tender={item} onPress={() => handleCardPress(item)} />
+    <RateAnalysisTenderCard 
+      tender={item} 
+      onPress={() => handleCardPress(item)}
+      onPressMarket={() => navigation.navigate('RateAnalysisTenderDetail', { tenderId: item.tenderId, mode: 'market' })}
+      onPressSSR={() => navigation.navigate('RateAnalysisTenderDetail', { tenderId: item.tenderId, mode: 'ssr' })}
+    />
   );
 
   const renderEmptyState = () => (

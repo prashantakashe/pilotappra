@@ -1,10 +1,5 @@
 // src/components/dailyWorkStatus/DWSDailyEntryTab.tsx
-/**
- * Daily Entry Tab for Daily Work Status module
- * Allows creating/editing daily work entries with sub-activities
- */
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,31 +26,32 @@ import {
 import type { DWSProject, DWSPersonnel, DWSStatus, DWSDailyEntry, DWSSubActivity } from '../../types/dailyWorkStatus';
 
 // Dropdown Component
-interface DropdownOption {
-  value: string;
-  label: string;
-  color?: string;
-}
-
-interface DropdownProps {
-  options: DropdownOption[];
-  value: string;
-  onSelect: (value: string) => void;
-  placeholder?: string;
-  width?: number;
-  showColorBadge?: boolean;
-}
-
-const Dropdown: React.FC<DropdownProps> = ({ 
-  options, 
-  value, 
-  onSelect, 
-  placeholder = 'Select...', 
-  width = 140,
-  showColorBadge = false 
-}) => {
+// TypeScript interfaces removed for JS compatibility
+function Dropdown(props) {
+  const options = props.options;
+  const value = props.value;
+  const onSelect = props.onSelect;
+  const placeholder = props.placeholder !== undefined ? props.placeholder : 'Select...';
+  const width = props.width !== undefined ? props.width : 140;
+  const showColorBadge = props.showColorBadge !== undefined ? props.showColorBadge : false;
   const [isOpen, setIsOpen] = useState(false);
+  // For web, use a ref with correct type for .contains
+  // Always use correct type for web
+  const triggerRef = useRef<any>(null);
+  // Close dropdown on outside click (web only)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (triggerRef.current && (triggerRef.current as HTMLElement).contains && !(triggerRef.current as HTMLElement).contains(e.target as Node)) {
+        setIsOpen(false);
+        setSearchText('');
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
   const [searchText, setSearchText] = useState('');
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const selectedOption = options.find(o => o.value === value);
   
   // Filter options based on search text
@@ -63,89 +59,34 @@ const Dropdown: React.FC<DropdownProps> = ({
     ? options.filter(opt => opt.label.toLowerCase().includes(searchText.toLowerCase()))
     : options;
   
-  return (
-    <View style={[dropdownStyles.container, { width }]}>
-      <TouchableOpacity 
-        style={[
-          dropdownStyles.trigger,
-          showColorBadge && selectedOption?.color && { borderColor: selectedOption.color, borderWidth: 2 }
-        ]}
-        onPress={() => setIsOpen(true)}
-      >
-        {showColorBadge && selectedOption?.color && (
-          <View style={[dropdownStyles.colorDot, { backgroundColor: selectedOption.color }]} />
-        )}
-        <Text style={dropdownStyles.triggerText} numberOfLines={1}>
-          {selectedOption?.label || placeholder}
-        </Text>
-        <Text style={dropdownStyles.arrow}>▼</Text>
-      </TouchableOpacity>
-      
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setIsOpen(false);
-          setSearchText('');
+  if (Platform.OS === 'web') {
+    return (
+      <select
+        style={{
+          width: width,
+          minWidth: 100,
+          padding: '6px 10px',
+          borderRadius: 6,
+          border: `1px solid ${selectedOption?.color || '#D1D5DB'}`,
+          color: selectedOption?.color || '#222',
+          background: '#fff',
+          fontSize: 14,
+          outline: 'none',
+          cursor: 'pointer',
         }}
+        value={value}
+        onChange={e => onSelect(e.target.value)}
       >
-        <Pressable style={dropdownStyles.overlay} onPress={() => {
-          setIsOpen(false);
-          setSearchText('');
-        }}>
-          <View style={dropdownStyles.modal}>
-            <Text style={dropdownStyles.modalTitle}>{placeholder}</Text>
-            
-            {/* Search Input */}
-            <TextInput
-              style={dropdownStyles.searchInput}
-              placeholder="Search..."
-              value={searchText}
-              onChangeText={setSearchText}
-              autoFocus
-            />
-            
-            <ScrollView style={dropdownStyles.optionsList}>
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      dropdownStyles.option,
-                      value === option.value && dropdownStyles.optionSelected
-                    ]}
-                    onPress={() => {
-                      onSelect(option.value);
-                      setIsOpen(false);
-                      setSearchText('');
-                    }}
-                  >
-                    {showColorBadge && option.color && (
-                      <View style={[dropdownStyles.optionColorDot, { backgroundColor: option.color }]} />
-                    )}
-                    <Text style={[
-                      dropdownStyles.optionText,
-                      value === option.value && dropdownStyles.optionTextSelected
-                    ]}>
-                      {option.label}
-                    </Text>
-                    {value === option.value && (
-                      <Text style={dropdownStyles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={dropdownStyles.emptyState}>
-                  <Text style={dropdownStyles.emptyText}>No matches found</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-    </View>
-  );
+        <option value="" disabled>{placeholder}</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value} style={{ color: opt.color || '#222' }}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  // ...existing code for mobile/modal dropdown...
 };
 
 const dropdownStyles = StyleSheet.create({
@@ -262,6 +203,91 @@ interface DWSDailyEntryTabProps {
 }
 
 export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilter }) => {
+          // Tooltip state for Add New Entry button (web)
+          const [showAddTooltip, setShowAddTooltip] = useState(false);
+        // Helper to format date as DD/MM/YYYY
+        function formatDateTime(dateTimeStr: string) {
+          const dateObj = new Date(dateTimeStr);
+          if (isNaN(dateObj.getTime())) return dateTimeStr;
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const year = dateObj.getFullYear();
+          const time = dateObj.toLocaleTimeString();
+          return `${day}/${month}/${year}, ${time}`;
+        }
+      // Inject web-specific CSS for horizontal wrapping of status cards (only once)
+      useEffect(() => {
+        if (Platform.OS === 'web' && typeof document !== 'undefined') {
+          const styleId = 'dws-status-row-web-style';
+          if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+              .dws-status-row-web {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                width: 880px !important;
+                align-items: flex-start !important;
+                gap: 12px !important;
+                margin-top: 8px !important;
+                margin-bottom: 4px !important;
+              }
+              .dws-status-row-web > div {
+                background: #FFF3CD;
+                padding: 12px;
+                border-left: 3px solid #FFC107;
+                border-radius: 4px;
+                min-width: 270px;
+                max-width: 280px;
+                flex: 1 1 270px;
+                margin-bottom: 8px;
+                display: flex;
+                flex-direction: column;
+                box-sizing: border-box;
+              }
+            `;
+            document.head.appendChild(style);
+          }
+        }
+      }, []);
+    // Inject web-specific CSS for status update row wrapping (only once)
+    useEffect(() => {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined' && Platform.OS === 'web') {
+        if (!document.getElementById('dws-status-updates-row-style')) {
+          const style = document.createElement('style');
+          style.id = 'dws-status-updates-row-style';
+          style.innerHTML = `
+            .dws-status-updates-row {
+              display: flex !important;
+              flex-direction: row !important;
+              flex-wrap: wrap !important;
+              align-items: flex-start !important;
+              gap: 8px !important;
+              width: 610px !important;
+              max-width: 100% !important;
+              margin-top: 8px !important;
+              margin-bottom: 4px !important;
+            }
+            .dws-status-updates-row > div {
+              background: #FFF3CD;
+              padding: 12px;
+              border-left: 3px solid #FFC107;
+              border-radius: 4px;
+              margin-right: 4px;
+              margin-bottom: 4px;
+              min-width: 180px;
+              max-width: 260px;
+              display: flex;
+              flex-direction: column;
+              flex-shrink: 0;
+              flex-grow: 0;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      }
+    }, []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -274,12 +300,14 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
   // Entries
   const [entries, setEntries] = useState<DWSDailyEntry[]>([]);
   
+
   // Filters
   const [filterProject, setFilterProject] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [filterActivity, setFilterActivity] = useState('');
   const [filterAssigned, setFilterAssigned] = useState('');
   const [filterStatus, setFilterStatus] = useState(initialFilter || '');
+  const [showTodayOnly, setShowTodayOnly] = useState(false);
   
   // Actions menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -383,25 +411,25 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
       Alert.alert('Error', 'Please add at least one status in Master Data first');
       return;
     }
-    
+
     try {
       setSaving(true);
       const now = new Date();
       const newEntry: Omit<DWSDailyEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'> = {
-        projectId: projects[0].id,
-        projectName: projects[0].name,
+        projectId: '', // No default project selected
+        projectName: '',
         date: now,
         dateTime: now.toLocaleString(),
         mainActivity: '',
-        assignedTo: personnel[0].name,
+        assignedTo: '', // No default person selected
         hours: 0,
         finalStatus: statuses[0].name,
         statusUpdates: [],
         subActivities: []
       };
-      
+
       await addEntry(newEntry);
-      
+
       // Scroll to top to show the new entry
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -647,6 +675,14 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
     }
   };
 
+  // Helper to check if a date is today
+  function isToday(date) {
+    if (!date) return false;
+    const d = new Date(date);
+    const now = new Date();
+    return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }
+
   // Filter entries
   const filteredEntries = entries.filter(entry => {
     if (filterProject && !entry.projectName.toLowerCase().includes(filterProject.toLowerCase())) return false;
@@ -654,6 +690,12 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
     if (filterActivity && !entry.mainActivity.toLowerCase().includes(filterActivity.toLowerCase())) return false;
     if (filterAssigned && !entry.assignedTo.toLowerCase().includes(filterAssigned.toLowerCase())) return false;
     if (filterStatus && entry.finalStatus !== filterStatus) return false;
+    if (showTodayOnly) {
+      // Check if entry.dateTime or any status update is today
+      const entryIsToday = isToday(entry.dateTime || entry.date);
+      const statusUpdateIsToday = Array.isArray(entry.statusUpdates) && entry.statusUpdates.some(u => isToday(u.timestamp));
+      if (!entryIsToday && !statusUpdateIsToday) return false;
+    }
     return true;
   });
 
@@ -672,6 +714,36 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
       
       {/* Filters */}
       <View style={styles.filterRow}>
+        {/* Show Only Today's Updates Checkbox */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+          {Platform.OS === 'web' ? (
+            <input
+              type="checkbox"
+              checked={showTodayOnly}
+              onChange={e => setShowTodayOnly(e.target.checked)}
+              style={{ marginRight: 6 }}
+            />
+          ) : (
+            <TouchableOpacity
+              onPress={() => setShowTodayOnly(v => !v)}
+              style={{ marginRight: 6 }}
+            >
+              <View style={{
+                width: 18,
+                height: 18,
+                borderWidth: 1,
+                borderColor: '#888',
+                borderRadius: 4,
+                backgroundColor: showTodayOnly ? '#2563EB' : '#fff',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                {showTodayOnly && <Text style={{ color: '#fff', fontWeight: 'bold' }}>✓</Text>}
+              </View>
+            </TouchableOpacity>
+          )}
+          <Text style={{ fontSize: 13, color: '#222' }}>Show only today's updates</Text>
+        </View>
         <TextInput
           style={styles.filterInput}
           placeholder="Filter Project"
@@ -696,26 +768,46 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
           value={filterAssigned}
           onChangeText={setFilterAssigned}
         />
+        {/* Status Filter Dropdown */}
         <View style={styles.filterPickerContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              style={[styles.filterChip, !filterStatus && styles.filterChipActive]}
-              onPress={() => setFilterStatus('')}
+          {Platform.OS === 'web' ? (
+            <select
+              style={{
+                minWidth: 150,
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: '1px solid #D1D5DB',
+                fontSize: 14,
+                background: '#fff',
+                color: '#222',
+                marginLeft: 8
+              }}
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
             >
-              <Text style={[styles.filterChipText, !filterStatus && styles.filterChipTextActive]}>All</Text>
-            </TouchableOpacity>
-            {statuses.map(status => (
-              <TouchableOpacity
-                key={status.id}
-                style={[styles.filterChip, filterStatus === status.name && styles.filterChipActive]}
-                onPress={() => setFilterStatus(status.name)}
-              >
-                <Text style={[styles.filterChipText, filterStatus === status.name && styles.filterChipTextActive]}>
-                  {status.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              <option value="">All</option>
+              <option value="Not Started">Not Started</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Completed">Completed</option>
+              <option value="Delayed">Delayed</option>
+            </select>
+          ) : (
+            <View style={{ minWidth: 150 }}>
+              <Dropdown
+                options={[
+                  { value: '', label: 'All' },
+                  { value: 'Not Started', label: 'Not Started' },
+                  { value: 'Ongoing', label: 'Ongoing' },
+                  { value: 'Completed', label: 'Completed' },
+                  { value: 'Delayed', label: 'Delayed' },
+                ]}
+                value={filterStatus}
+                onSelect={setFilterStatus}
+                placeholder="Status"
+                width={150}
+              />
+            </View>
+          )}
         </View>
       </View>
       
@@ -732,7 +824,55 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
               style={styles.tableHeader}
               {...(Platform.OS === 'web' ? { className: 'dws-table-header' } : {})}
             >
-              <Text style={[styles.headerCell, { width: 150 }]}>Project</Text>
+              <Text style={[styles.headerCell, { width: 150, flexDirection: 'row', alignItems: 'center', display: 'flex' }]}>Project
+                {/* Add Button next to Project header, with custom tooltip */}
+                {Platform.OS === 'web' ? (
+                  <span style={{ position: 'relative', display: 'inline-block', marginLeft: 8 }}>
+                    <button
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: '#28a745',
+                        color: '#fff',
+                        fontSize: 22,
+                        fontWeight: 'bold',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onClick={handleAddNewRow}
+                      disabled={saving}
+                      onMouseEnter={() => setShowAddTooltip(true)}
+                      onMouseLeave={() => setShowAddTooltip(false)}
+                      aria-label="Add New Entry"
+                    >
+                      {saving ? '...' : '+'}
+                    </button>
+                    {showAddTooltip && (
+                      <span style={{
+                        position: 'absolute',
+                        top: 38,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: '#222',
+                        color: '#fff',
+                        padding: '4px 12px',
+                        borderRadius: 6,
+                        fontSize: 13,
+                        whiteSpace: 'nowrap',
+                        zIndex: 1000,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.18)'
+                      }}>
+                        Add New Entry
+                      </span>
+                    )}
+                  </span>
+                ) : null}
+              </Text>
               <Text style={[styles.headerCell, { width: 100 }]}>Date & Time</Text>
               <Text style={[styles.headerCell, { width: 250 }]}>Main Activity</Text>
               <Text style={[styles.headerCell, { width: 120 }]}>Start Date</Text>
@@ -749,7 +889,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                 {/* Main Entry Row */}
                 <View style={styles.tableRow}>
                   {/* Project Dropdown */}
-                  <View style={[styles.cell, { width: 150 }]}>
+                  <View style={[styles.cell, { width: 150 }]}> 
                     <Dropdown
                       options={projects
                         .sort((a, b) => a.name.localeCompare(b.name))
@@ -762,7 +902,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                   </View>
                   
                   {/* Date/Time */}
-                  <Text style={[styles.cell, { width: 100 }]}>{entry.dateTime}</Text>
+                  <Text style={[styles.cell, { width: 100 }]}>{formatDateTime(entry.dateTime)}</Text>
                   
                   {/* Main Activity */}
                   <View style={[styles.cell, { width: 250 }]}>
@@ -801,20 +941,33 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                         spellCheck={false}
                       />
                     )}
-                    {/* Status Updates */}
-                    <View style={styles.statusUpdatesContainer}>
-                      {entry.statusUpdates?.filter(u => u.note).map((update, idx) => {
-                        const timestamp = formatTimestamp(update.timestamp);
-                        return (
-                          <View key={idx} style={styles.statusUpdate}>
-                            <Text style={styles.statusTimestamp}>
-                              {timestamp || 'Status Update'}
-                            </Text>
-                            <Text style={styles.statusUpdateNote}>{update.note}</Text>
-                          </View>
-                        );
-                      })}
-                    </View>
+                    {/* Status Updates - horizontal, wrapping, spanning Main Activity to Final Status */}
+                    {/* Status Updates - horizontal, wrapping, spanning Main Activity to Final Status */}
+                    {Platform.OS === 'web' ? (
+                      <div className="dws-status-row-web">
+                        {entry.statusUpdates?.filter(u => u.note).map((update, idx) => {
+                          const timestamp = formatTimestamp(update.timestamp);
+                          return (
+                            <div key={idx}>
+                              <div style={{ fontSize: 12, color: '#856404', fontWeight: 600, marginBottom: 4 }}>{timestamp || 'Status Update'}</div>
+                              <div style={{ fontSize: 14, color: '#856404', whiteSpace: 'pre-line' }}>{update.note}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <View style={styles.statusUpdatesRowContainer}>
+                        {entry.statusUpdates?.filter(u => u.note).map((update, idx) => {
+                          const timestamp = formatTimestamp(update.timestamp);
+                          return (
+                            <View key={idx} style={styles.statusUpdateCard}>
+                              <Text style={styles.statusTimestamp}>{timestamp || 'Status Update'}</Text>
+                              <Text style={styles.statusUpdateNote}>{update.note}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
                   
                   {/* Start Date */}
@@ -831,14 +984,15 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                           fontFamily: 'inherit',
                           cursor: 'pointer'
                         }}
-                        value={entry.startDate ? (() => {
+                        value={(function() {
+                          if (!entry.startDate) return '';
                           try {
                             const date = new Date(entry.startDate);
                             return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
-                          } catch {
+                          } catch (e) {
                             return '';
                           }
-                        })() : ''}
+                        })()}
                         onClick={(e: any) => e.stopPropagation()}
                         onChange={(e: any) => {
                           e.stopPropagation();
@@ -871,7 +1025,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                           try {
                             const date = new Date(entry.startDate);
                             return !isNaN(date.getTime()) ? date.toLocaleDateString('en-GB') : '';
-                          } catch {
+                          } catch (e) {
                             return '';
                           }
                         })() : ''}
@@ -905,14 +1059,15 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                           fontFamily: 'inherit',
                           cursor: 'pointer'
                         }}
-                        value={entry.targetDate ? (() => {
+                        value={(function() {
+                          if (!entry.targetDate) return '';
                           try {
                             const date = new Date(entry.targetDate);
                             return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
-                          } catch {
+                          } catch (e) {
                             return '';
                           }
-                        })() : ''}
+                        })()}
                         onClick={(e: any) => e.stopPropagation()}
                         onChange={(e: any) => {
                           e.stopPropagation();
@@ -1145,13 +1300,17 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                   </View>
                   
                   {/* Final Status */}
-                  <View style={[styles.cell, { width: 120 }]}>
+                  <View style={[styles.cell, { width: 120 }]}> 
                     <Dropdown
-                      options={statuses.map(s => ({ value: s.name, label: s.name, color: s.color }))}
+                      options={statuses.map(status => ({
+                        label: status.name,
+                        value: status.name,
+                        color: status.color
+                      }))}
                       value={entry.finalStatus}
-                      onSelect={(value) => handleUpdateEntry(entry.id, 'finalStatus', value)}
+                      onSelect={selected => handleUpdateEntry(entry.id, 'finalStatus', selected)}
                       placeholder="Select Status"
-                      width={110}
+                      width={120}
                       showColorBadge={true}
                     />
                   </View>
@@ -1198,11 +1357,11 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                         />
                       )}
                       {/* Sub-Activity Status Updates */}
-                      <View style={styles.statusUpdatesContainer}>
+                      <View style={styles.statusUpdatesRowContainer}>
                         {sub.statusUpdates?.filter(u => u.note).map((update, idx) => {
                           const timestamp = formatTimestamp(update.timestamp);
                           return (
-                            <View key={idx} style={styles.statusUpdate}>
+                            <View key={idx} style={styles.statusUpdateCard}>
                               <Text style={styles.statusTimestamp}>
                                 {timestamp || 'Status Update'}
                               </Text>
@@ -1222,7 +1381,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                             try {
                               const date = new Date(sub.startDate);
                               return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
-                            } catch {
+                            } catch (e) {
                               return '';
                             }
                           })() : ''}
@@ -1271,7 +1430,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                             try {
                               const date = new Date(sub.startDate);
                               return !isNaN(date.getTime()) ? date.toLocaleDateString('en-GB') : '';
-                            } catch {
+                            } catch (e) {
                               return '';
                             }
                           })() : ''}
@@ -1300,7 +1459,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                             try {
                               const date = new Date(sub.targetDate);
                               return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
-                            } catch {
+                            } catch (e) {
                               return '';
                             }
                           })() : ''}
@@ -1349,7 +1508,7 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                             try {
                               const date = new Date(sub.targetDate);
                               return !isNaN(date.getTime()) ? date.toLocaleDateString('en-GB') : '';
-                            } catch {
+                            } catch (e) {
                               return '';
                             }
                           })() : ''}
@@ -1523,14 +1682,31 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
                     
                     {/* Status */}
                     <View style={[styles.cell, { width: 120 }]}>
-                      <Dropdown
-                        options={statuses.map(s => ({ value: s.name, label: s.name, color: s.color }))}
-                        value={sub.status}
-                        onSelect={(value) => handleUpdateSubActivity(entry.id, sub.id, 'status', value)}
-                        placeholder="Select Status"
-                        width={110}
-                        showColorBadge={true}
-                      />
+                      <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false}
+                        style={{ maxHeight: 100 }}
+                        contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}
+                      >
+                        {statuses.map(status => (
+                          <TouchableOpacity
+                            key={status.id}
+                            style={[
+                              styles.statusChip,
+                              { borderColor: status.color },
+                              sub.status === status.name && { backgroundColor: status.color }
+                            ]}
+                            onPress={() => handleUpdateSubActivity(entry.id, sub.id, 'status', status.name)}
+                          >
+                            <Text style={[
+                              styles.statusChipText,
+                              sub.status === status.name && { color: '#fff', fontWeight: '600' }
+                            ]}>
+                              {status.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
                     </View>
                   </View>
                 ))}
@@ -1547,33 +1723,8 @@ export const DWSDailyEntryTab: React.FC<DWSDailyEntryTabProps> = ({ initialFilte
       </ScrollView>
       
       {/* Add Button */}
-      {Platform.OS === 'web' ? (
-        <button
-          style={{
-            position: 'fixed',
-            bottom: '30px',
-            right: '30px',
-            width: '60px',
-            height: '60px',
-            borderRadius: '30px',
-            backgroundColor: '#28a745',
-            color: '#fff',
-            fontSize: '30px',
-            fontWeight: '300',
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onClick={handleAddNewRow}
-          disabled={saving}
-          title="Add New Entry"
-        >
-          {saving ? '...' : '+'}
-        </button>
-      ) : (
+      {/* Add Button for native remains at bottom */}
+      {Platform.OS !== 'web' && (
         <TouchableOpacity 
           style={styles.addButton}
           onPress={handleAddNewRow}
@@ -1667,13 +1818,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.ACTION_BLUE,
     paddingVertical: spacing.md,
-    ...Platform.select({
-      web: {
-        position: 'sticky',
-        top: 0,
-        zIndex: 10
-      }
-    })
+    zIndex: 10
   },
   headerCell: {
     color: '#fff',
@@ -1765,9 +1910,29 @@ const styles = StyleSheet.create({
     color: colors.TEXT_PRIMARY
   },
   statusUpdatesContainer: {
+    // legacy, not used
+  },
+  statusUpdatesRowContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: spacing.xs
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  statusUpdateCard: {
+    backgroundColor: '#FFF3CD',
+    padding: spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFC107',
+    borderRadius: 4,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
+    minWidth: 180,
+    maxWidth: 260,
+    flexShrink: 0,
+    flexGrow: 0,
+    display: 'flex',
   },
   statusUpdate: {
     backgroundColor: '#FFF3CD',
@@ -1777,7 +1942,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
-    width: 230
+    minWidth: 230, // FIX: Changed from 'width' to 'minWidth' for consistent flex behavior
+    flexShrink: 0, // Prevents shrinking below minWidth, forcing wrap
+    flexGrow: 0, // FIX: Prevents growing to fill remaining space
   },
   statusTimestamp: {
     fontSize: 14,

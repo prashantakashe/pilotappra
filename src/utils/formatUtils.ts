@@ -47,6 +47,21 @@ export const formatUtils = {
   },
 
   /**
+   * Format file size in human-readable form (KB/MB/GB)
+   */
+  formatFileSize(sizeInBytes: number | null | undefined): string {
+    if (sizeInBytes === null || sizeInBytes === undefined || isNaN(Number(sizeInBytes))) return '—';
+    const size = Number(sizeInBytes);
+    if (size < 1024) return `${size} B`;
+    const kb = size / 1024;
+    if (kb < 1024) return `${kb.toFixed(2)} KB`;
+    const mb = kb / 1024;
+    if (mb < 1024) return `${mb.toFixed(2)} MB`;
+    const gb = mb / 1024;
+    return `${gb.toFixed(2)} GB`;
+  },
+
+  /**
    * Truncate text to specified length
    */
   truncate(text: string | null | undefined, maxLength: number = 100): string {
@@ -91,5 +106,21 @@ export const formatUtils = {
     if (city) parts.push(city);
     if (state) parts.push(state);
     return parts.join(', ') || 'N/A';
+  },
+
+  /**
+   * Format file size in human-readable format (B, KB, MB, GB)
+   */
+  formatFileSize(bytes: number | null | undefined): string {
+    if (bytes === null || bytes === undefined || bytes === 0) return '0 B';
+
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+
+    if (i === 0) {
+      return Math.floor(bytes) + ' ' + sizes[i];
+    }
+
+    return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
   }
 };

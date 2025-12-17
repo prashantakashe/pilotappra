@@ -11,6 +11,13 @@ import { ParsedBOQTable, type BOQRevision } from '../components/ParsedBOQTable';
 import { ParsedBoqTablePhase2_1 } from '../components/ParsedBoqTablePhase2_1';
 import { RateBuilder, type RateRevision } from '../components/RateBuilder';
 import { BOQParseSettings } from '../components/BOQParseSettings';
+import { BoqFilesMetadataTable, type BoqFileRow } from '../components/BoqFilesMetadataTable';
+import LeadChartTab from '../components/LeadChartTab';
+import RecapTab from '../components/RecapTab';
+import ProjectDetailsTab from '../components/ProjectDetailsTab';
+import { UploadBOQTab } from '../components/dsr';
+import SummaryTab from '../components/SummaryTab';
+import AbstractTab from '../components/AbstractTab';
 import { useResponsive } from '../hooks/useResponsive';
 import { tenderService } from '../services/tenderService';
 import type { Tender } from '../types/tender';
@@ -29,7 +36,8 @@ type NavigationParams = NativeStackNavigationProp<AppStackParamList, 'RateAnalys
 export const RateAnalysisTenderDetail: React.FC = () => {
   const route = useRoute<RouteParams>();
   const navigation = useNavigation<NavigationParams>();
-  const { tenderId } = route.params;
+  const { tenderId, mode } = route.params;
+  const effectiveMode = mode || 'market'; // default to market RA when not provided
   
   const [tender, setTender] = useState<Tender | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +52,8 @@ export const RateAnalysisTenderDetail: React.FC = () => {
   const [selectedRateItem, setSelectedRateItem] = useState<StandardBOQRow | null>(null);
   const [selectedRateItemIndex, setSelectedRateItemIndex] = useState<number>(-1);
   const [selectedRevisionKey, setSelectedRevisionKey] = useState<string>('R1');
+  const [boqFileMetadataRows, setBoqFileMetadataRows] = useState<BoqFileRow[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('Project Details');
   
   // Track if we just uploaded data locally (to prevent Firestore listener from overwriting)
   const justUploadedRef = React.useRef(false);
@@ -75,107 +85,60 @@ export const RateAnalysisTenderDetail: React.FC = () => {
 
     // Prefer multi-file field when present
     const tenderBoqFiles: Array<{ name: string; rows: any[]; report: any }> = Array.isArray((tender as any).boqFiles) ? (tender as any).boqFiles : [];
+    const tenderMetadata: any[] = Array.isArray((tender as any).boqFileMetadata) ? (tender as any).boqFileMetadata : [];
 
-    // If no parsedBoq and no boqFiles, clear any stale local files
-    if ((tenderBoqFiles.length === 0) && (!tender.parsedBoq || !Array.isArray(tender.parsedBoq) || tender.parsedBoq.length === 0)) {
-      if (boqFiles.length > 0) {
-        console.log('[RateAnalysisTenderDetail TENDER SYNC] No parsedBoq in Firestore — clearing local boqFiles');
-        setBoqFiles([]);
-      }
+    // If no parsedBoq and no boqFiles AND no metadata, clear any stale local files
+    if ((tenderBoqFiles.length === 0) && (!tender.parsedBoq || !Array.isArray(tender.parsedBoq) || tender.parsedBoq.length === 0) && (tenderMetadata.length === 0)) {
+      setBoqFileMetadataRows([]);
       return;
     }
-
-    // Prevent the Firestore listener from immediately overwriting local state right after a local upload
-    if (justUploadedRef.current) {
-      console.log('[RateAnalysisTenderDetail TENDER SYNC] Skipping population because justUploadedRef is set (recent local upload). Clearing flag for next update.');
-      justUploadedRef.current = false;
-      return;
-    }
-
-    // Check if local state already matches Firestore (avoid unnecessary updates)
-    // Only skip if we have matching files AND the current parsedBoq has data displayed
-    if (tenderBoqFiles.length > 0 && boqFiles.length === tenderBoqFiles.length && boqFiles.length > 0 && parsedBoq.length > 0) {
-      const localNames = boqFiles.map(f => f.name).sort().join(',');
-      const firestoreNames = tenderBoqFiles.map(f => f.name).sort().join(',');
-      
-      // Also check if local files have actual data (rows loaded)
-      const localHasData = boqFiles.every(f => f.rows && Array.isArray(f.rows) && f.rows.length > 0);
-      
-      if (localNames === firestoreNames && localHasData) {
-        console.log('[RateAnalysisTenderDetail TENDER SYNC] Local boqFiles already match Firestore and have data — skipping update');
-        return;
-      }
-    }
-
-    // Always update if we have Firestore data (or if local is empty but Firestore has data)
-    if (tenderBoqFiles.length > 0 || (tender.parsedBoq && Array.isArray(tender.parsedBoq) && tender.parsedBoq.length > 0)) {
-      console.log('[RateAnalysisTenderDetail TENDER SYNC] 🔄 POPULATING / UPDATING boqFiles from tender data');
-      const hasMulti = tenderBoqFiles.length > 0;
-      
-      if (hasMulti) {
-        // Multiple files - check if any use subcollections
-        const loadFilesAsync = async () => {
-          const loadedFiles = await Promise.all(tenderBoqFiles.map(async (file: any) => {
-            if (file.usesSubcollection && file.fileId) {
-              // Load from subcollection
-              console.log(`[RateAnalysisTenderDetail] Loading large BOQ from subcollection: ${file.name}`);
-              try {
-                const { loadBoqFromSubcollection } = await import('../services/firestoreBoqApi');
-                const rows = await loadBoqFromSubcollection(tenderId, file.fileId);
-                return {
-                  name: file.name,
-                  rows: rows,
-                  report: file.report
-                };
-              } catch (error) {
-                console.error('[RateAnalysisTenderDetail] Failed to load from subcollection:', error);
-                return {
-                  name: file.name,
-                  rows: [],
-                  report: file.report
-                };
-              }
-            } else {
-              // Already has rows inline
-              return file;
-            }
+    // If we have a single file, set it
+    if (tenderBoqFiles.length === 1) {
+      const file = tenderBoqFiles[0];
+      console.log('[RateAnalysisTenderDetail TENDER SYNC] ✅ Setting single boqFile:', { name: file.name, rows: file.rows.length });
+      setBoqFiles([file] as any);
+      // Populate metadata for single-file tenders
+      try {
+        const tenderMetadata: any[] = Array.isArray((tender as any).boqFileMetadata) ? (tender as any).boqFileMetadata : [];
+        // If we have explicit metadata stored, use it
+        // Otherwise create a single entry from the file
+        if (tenderMetadata.length > 0) {
+          const mapped = tenderMetadata.map((m, idx) => ({
+            id: `boq_meta_${idx}_${(m.fileName || '').replace(/\s+/g, '_')}`,
+            srNo: idx + 1,
+            description: m.description || '',
+            fileName: m.fileName || '',
+            fileSize: m.fileSize || (m.size ? formatUtils.formatFileSize(m.size) : '—'),
+            fileLastModified: m.fileLastModified || (m.lastModified ? dateUtils.formatDate(new Date(m.lastModified)) : ''),
+            fileUrl: m.fileUrl,
+            parsedBoqName: m.parsedBoqName,
+            saved: true,
           }));
-
-          console.log('[RateAnalysisTenderDetail TENDER SYNC] ✅ Setting boqFiles list:', loadedFiles.map(f => ({ name: f.name, rows: f.rows?.length || 0 })));
-          setBoqFiles(loadedFiles as any);
-          
-          // If we don't have a current file displayed, or current index is out of range, show the last one (most recent)
-          const indexToShow = (currentBoqIndex >= 0 && currentBoqIndex < loadedFiles.length) ? currentBoqIndex : loadedFiles.length - 1;
-          console.log('[RateAnalysisTenderDetail TENDER SYNC] 🔍 Setting currentBoqIndex from', currentBoqIndex, 'to', indexToShow);
-          setCurrentBoqIndex(indexToShow);
-          setParsedBoq(loadedFiles[indexToShow].rows as any[]);
-          setParseReport(loadedFiles[indexToShow].report);
-          setUploadedFileName(loadedFiles[indexToShow].name);
-        };
-
-        loadFilesAsync();
-      } else {
-        // Single file - backward compatibility
-        const firestoreRows = tender.parsedBoq as any[];
-        const file = {
-          name: tender.boqFileUrl,
-          rows: firestoreRows,
-          report: {
-            rowsParsed: firestoreRows.length,
-            rowsSkipped: 0,
-            warnings: [],
-            mappingConfidence: 1.0,
-            suggestedMapping: (tender as any).boqHeaders || {},
-            sheets: [...new Set(firestoreRows.map((r: any) => r.sheetName).filter(Boolean))]
-          }
-        };
-        console.log('[RateAnalysisTenderDetail TENDER SYNC] ✅ Setting single boqFile:', { name: file.name, rows: file.rows.length });
-        setBoqFiles([file] as any);
-        setCurrentBoqIndex(0);
-        setParsedBoq(file.rows as any[]);
-        setParseReport(file.report);
-        setUploadedFileName(file.name);
+          console.log('[RateAnalysisTenderDetail TENDER SYNC] Using stored metadata for single file:', mapped.length, 'entries');
+          setBoqFileMetadataRows(mapped);
+        } else {
+          // Create inferred metadata from the single file
+          const inferredRow = {
+            id: `boq_meta_inferred_0_${(file.name || '').replace(/\s+/g, '_')}`,
+            srNo: 1,
+            description: '',
+            fileName: file.name || '',
+            fileSize: '—',
+            fileLastModified: '',
+            fileUrl: (tender as any)?.boqFileUrl || undefined,
+            parsedBoqName: file.name || undefined,
+            saved: true, // Already parsed since we have file.rows
+          };
+          console.log('[RateAnalysisTenderDetail TENDER SYNC] Using inferred metadata for single file:', file.name);
+          setBoqFileMetadataRows([inferredRow]);
+        }
+      } catch (err) {
+        console.warn('[RateAnalysisTenderDetail] Error populating single-file boqFileMetadataRows:', err);
       }
+      setCurrentBoqIndex(0);
+      setParsedBoq(file.rows as any[]);
+      setParseReport(file.report);
+      setUploadedFileName(file.name);
     }
   }, [tender?.tenderId, (tender as any)?.boqFiles]);
 
@@ -303,9 +266,10 @@ export const RateAnalysisTenderDetail: React.FC = () => {
     };
   }, [tenderId]);
 
-  const handleFileUpload = async (fileName: string, parseResult?: ParseResult) => {
+  const handleFileUpload = async (fileName: string, parseResult?: ParseResult, fileMetadata?: { size: number; lastModified: number }) => {
     console.log('[RateAnalysisTenderDetail] BOQ file uploaded:', fileName);
     console.log('[RateAnalysisTenderDetail] Parse result:', parseResult);
+    console.log('[RateAnalysisTenderDetail] File metadata:', fileMetadata);
     setUploadedFileName(fileName);
     
     if (parseResult) {
@@ -348,6 +312,37 @@ export const RateAnalysisTenderDetail: React.FC = () => {
           setCurrentBoqIndex(prev.length);
           return [...prev, newFile];
         }
+      });
+
+      // Create metadata row for the BOQ file
+      const fileSizeFormatted = fileMetadata
+        ? formatUtils.formatFileSize(fileMetadata.size)
+        : '—';
+      const lastModifiedFormatted = fileMetadata
+        ? dateUtils.formatDate(new Date(fileMetadata.lastModified))
+        : dateUtils.formatDate(new Date());
+
+      const newMetadataRow: BoqFileRow = {
+        id: `boq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        srNo: boqFileMetadataRows.length + 1,
+        description: '',
+        fileName: fileName,
+        fileSize: fileSizeFormatted,
+        fileLastModified: lastModifiedFormatted,
+        fileUrl: undefined,
+        parsedBoqName: parseResult.parsedBoq.length > 0 ? fileName : undefined,
+        saved: false,
+      };
+
+      setBoqFileMetadataRows(prev => {
+        const updated = [...prev];
+        const existingIndex = updated.findIndex(r => r.fileName === fileName);
+        if (existingIndex >= 0) {
+          updated[existingIndex] = newMetadataRow;
+        } else {
+          updated.push(newMetadataRow);
+        }
+        return updated;
       });
       
       // If we have rows, save to Firestore IMMEDIATELY with await
@@ -1027,6 +1022,54 @@ export const RateAnalysisTenderDetail: React.FC = () => {
     );
   }
 
+  // If SSR mode requested, return compact SSR UI (only Selected Tender + tabs)
+  if (effectiveMode === 'ssr') {
+    return (
+      <AppLayout
+        title={`SSR Rate Analysis - ${tender?.title || 'Tender'}`}
+        activeRoute="RateAnalysis"
+        showBackButton={true}
+        sidebarItems={RATE_ANALYSIS_NAV}
+        onBackPress={() => navigation.goBack()}
+      >
+        <ScrollView style={styles.mainContent}>
+          <View style={styles.ssrWrapper}>
+            <Text style={styles.ssrTitle}>SSR Rate Analysis (Compact)</Text>
+            <View style={styles.ssrSelectedCard}>
+              <Text style={styles.sectionTitle}>Selected Tender</Text>
+              <Text style={styles.tenderValue}>{tender.title}</Text>
+              <Text style={styles.tenderLabel}>ID: {tender.tenderNo || tender.tenderId}</Text>
+            </View>
+            <View style={styles.tabsRow}>
+              {['Project Details','SSR/DSR','Upload BOQ','Racapitulation','Summery','Abstract','Measurement','SSR RA','Lead Chart'].map(tab => (
+                <TouchableOpacity key={tab} style={[styles.tabButton, activeTab===tab && styles.tabButtonActive]} onPress={() => setActiveTab(tab)}>
+                  <Text style={[styles.tabText, activeTab===tab && styles.tabTextActive]}>{tab}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.tabContentPlaceholder}>
+              {activeTab === 'Project Details' ? (
+                <ProjectDetailsTab tenderId={tenderId} />
+              ) : activeTab === 'Upload BOQ' ? (
+                <UploadBOQTab />
+              ) : activeTab === 'Lead Chart' ? (
+                <LeadChartTab tenderId={tenderId} />
+              ) : activeTab === 'Racapitulation' ? (
+                <RecapTab tenderId={tenderId} />
+              ) : activeTab === 'Summery' ? (
+                <SummaryTab tenderId={tenderId} />
+              ) : activeTab === 'Abstract' ? (
+                <AbstractTab tenderId={tenderId} />
+              ) : (
+                <Text style={{ color: '#6B7280' }}>Content for "{activeTab}" will be added later.</Text>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout
       title={`Rate Analysis - ${tender?.title || 'Tender Detail'}`}
@@ -1035,8 +1078,16 @@ export const RateAnalysisTenderDetail: React.FC = () => {
       sidebarItems={RATE_ANALYSIS_NAV}
       onBackPress={() => navigation.goBack()}
     >
-      <ScrollView style={styles.mainContent}>
-        {/* Two-column layout: Selected Tender (left) + BOQ Upload (right) */}
+
+      <View style={[styles.tabsRow, styles.stickyTabsRow]}>
+        {['Project Details','SSR/DSR','Upload BOQ','Racapitulation','Summery','Abstract','Measurement','SSR RA','Lead Chart'].map(tab => (
+          <TouchableOpacity key={tab} style={[styles.tabButton, activeTab===tab && styles.tabButtonActive]} onPress={() => setActiveTab(tab)}>
+            <Text style={[styles.tabText, activeTab===tab && styles.tabTextActive]}>{tab}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {activeTab === 'Project Details' && (
         <View style={[styles.topRow, isMobile && styles.topRowMobile]}>
           {/* Left: Selected Tender Info */}
           <View style={[styles.tenderInfoCard, isMobile && styles.tenderInfoCardMobile]}>
@@ -1072,60 +1123,99 @@ export const RateAnalysisTenderDetail: React.FC = () => {
               </Text>
             </View>
           </View>
-
-          {/* Right: BOQ Upload Widget and Save Button */}
-          <View style={[styles.rightSection, isMobile && styles.rightSectionMobile]}>
-            <View style={styles.uploadSaveRow}>
-              <View style={styles.boqUploadCard}>
-                <BOQUploadWidget
-                  tenderId={tenderId}
-                  uploadedFileName={uploadedFileName}
-                  onFileUpload={handleFileUpload}
-                />
-              </View>
-              {/* Manual Save Button - if BOQ is parsed but not saved */}
-              {parsedBoq.length > 0 && (
-                <TouchableOpacity 
-                  style={styles.saveIconButton}
-                  onPress={() => saveParsedBoq(parsedBoq, parseReport, uploadedFileName || undefined)}
-                >
-                  <Text style={styles.saveIconButtonText}>💾</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            {/* Multiple BOQ Files List */}
-            {boqFiles.length > 0 && (
-              <View style={styles.boqFilesSection}>
-                <Text style={styles.boqFilesTitle}>📁 Uploaded BOQ Files ({boqFiles.length})</Text>
-                <ScrollView style={styles.boqFilesList} horizontal showsHorizontalScrollIndicator={false}>
-                  {boqFiles.map((file, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.boqFileButton,
-                        currentBoqIndex === index && styles.boqFileButtonActive
-                      ]}
-                      onPress={() => {
-                        setCurrentBoqIndex(index);
-                        setUploadedFileName(file.name);
-                        setParsedBoq(file.rows);
-                        setParseReport(file.report);
-                      }}
-                    >
-                      <Text style={[
-                        styles.boqFileButtonText,
-                        currentBoqIndex === index && styles.boqFileButtonTextActive
-                      ]}>
-                        {file.name} ({file.rows?.length || 0})
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
         </View>
+      )}
+
+        {/* BOQ File Metadata Table */}
+        {boqFileMetadataRows.length > 0 && (
+          <BoqFilesMetadataTable
+            rows={boqFileMetadataRows}
+            onRowsChange={setBoqFileMetadataRows}
+            onAddRow={() => {
+              const newRow: BoqFileRow = {
+                id: `boq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                srNo: boqFileMetadataRows.length + 1,
+                description: '',
+                fileName: '',
+                fileSize: '—',
+                fileLastModified: dateUtils.formatDate(new Date()),
+                fileUrl: undefined,
+                parsedBoqName: undefined,
+                saved: false,
+                isNewRow: true,
+                isEditing: true,
+                editingDescription: '',
+                editingFileName: '',
+              };
+              setBoqFileMetadataRows([...boqFileMetadataRows, newRow]);
+            }}
+            tenderId={tenderId}
+            onSaveRow={async (row) => {
+              // Persist to Firestore - update tender document with file metadata
+              try {
+                const tenderRef = doc(db, 'tenders', tenderId);
+                const existingMetadata = (tender as any)?.boqFileMetadata || [];
+                const existingIndex = existingMetadata.findIndex((m: any) => m.fileName === row.fileName);
+                
+                const updatedMetadata = [...existingMetadata];
+                if (existingIndex >= 0) {
+                  updatedMetadata[existingIndex] = {
+                    fileName: row.fileName,
+                    description: row.description,
+                    fileSize: row.fileSize,
+                    fileLastModified: row.fileLastModified,
+                    parsedBoqName: row.parsedBoqName,
+                    fileUrl: row.fileUrl,
+                  };
+                } else {
+                  updatedMetadata.push({
+                    fileName: row.fileName,
+                    description: row.description,
+                    fileSize: row.fileSize,
+                    fileLastModified: row.fileLastModified,
+                    parsedBoqName: row.parsedBoqName,
+                    fileUrl: row.fileUrl,
+                  });
+                }
+                
+                await updateDoc(tenderRef, {
+                  boqFileMetadata: updatedMetadata,
+                });
+              } catch (error) {
+                console.error('[RateAnalysisTenderDetail] Error saving file metadata:', error);
+                throw error;
+              }
+            }}
+            onDeleteRow={async (rowId) => {
+              // Remove from Firestore
+              try {
+                const rowToDelete = boqFileMetadataRows.find(r => r.id === rowId);
+                if (!rowToDelete) return;
+
+                const tenderRef = doc(db, 'tenders', tenderId);
+                const existingMetadata = (tender as any)?.boqFileMetadata || [];
+                const updatedMetadata = existingMetadata.filter((m: any) => m.fileName !== rowToDelete.fileName);
+                
+                await updateDoc(tenderRef, {
+                  boqFileMetadata: updatedMetadata,
+                });
+              } catch (error) {
+                console.error('[RateAnalysisTenderDetail] Error deleting file metadata:', error);
+                throw error;
+              }
+            }}
+            onParsedBoqClick={(row) => {
+              // Find the corresponding BOQ file by name and switch to it
+              const fileIndex = boqFiles.findIndex(f => f.name === row.parsedBoqName);
+              if (fileIndex >= 0) {
+                setCurrentBoqIndex(fileIndex);
+                console.log('[RateAnalysisTenderDetail] Switched to BOQ file:', row.parsedBoqName, 'at index', fileIndex);
+              } else {
+                Alert.alert('Not Found', `Could not find parsed BOQ: ${row.parsedBoqName}`);
+              }
+            }}
+          />
+        )}
 
         {/* BOQ Table - Phase 2: Parsed BOQ or Empty State */}
         <View style={styles.boqTableSection}>
@@ -1185,34 +1275,32 @@ export const RateAnalysisTenderDetail: React.FC = () => {
             </Text>
           </View>
         )}
-      </ScrollView>
+        {/* Parse Settings Modal */}
+        {showParseSettings && pendingParseResult && (
+          <BOQParseSettings
+            visible={showParseSettings}
+            onClose={() => {
+              setShowParseSettings(false);
+              setPendingParseResult(null);
+            }}
+            detectedMapping={pendingParseResult.parseReport.suggestedMapping}
+            previewRows={[]} // TODO: Pass actual preview rows from parser
+            onConfirm={handleParseSettingsConfirm}
+          />
+        )}
 
-      {/* Parse Settings Modal */}
-      {showParseSettings && pendingParseResult && (
-        <BOQParseSettings
-          visible={showParseSettings}
+        {/* Phase 2.1: Rate Builder Modal */}
+        <RateBuilder
+          open={rateBuilderOpen}
           onClose={() => {
-            setShowParseSettings(false);
-            setPendingParseResult(null);
+            setRateBuilderOpen(false);
+            setSelectedRateItem(null);
+            setSelectedRateItemIndex(-1);
           }}
-          detectedMapping={pendingParseResult.parseReport.suggestedMapping}
-          previewRows={[]} // TODO: Pass actual preview rows from parser
-          onConfirm={handleParseSettingsConfirm}
+          item={selectedRateItem}
+          onSaveRevision={handleSaveRateRevision}
         />
-      )}
-
-      {/* Phase 2.1: Rate Builder Modal */}
-      <RateBuilder
-        open={rateBuilderOpen}
-        onClose={() => {
-          setRateBuilderOpen(false);
-          setSelectedRateItem(null);
-          setSelectedRateItemIndex(-1);
-        }}
-        item={selectedRateItem}
-        onSaveRevision={handleSaveRateRevision}
-      />
-    </AppLayout>
+      </AppLayout>
   );
 };
 
@@ -1545,5 +1633,23 @@ const styles = StyleSheet.create({
     color: '#78350F',
     lineHeight: 20
   }
+  ,
+  ssrWrapper: { padding: 16, backgroundColor: '#fff', borderRadius: 8, margin: 16 },
+  ssrTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  ssrSelectedCard: { padding: 12, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, marginBottom: 12 },
+  tabsRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
+  stickyTabsRow: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tabButton: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F3F4F6', borderRadius: 6, marginRight: 8, marginBottom: 8 },
+  tabButtonActive: { backgroundColor: '#1E90FF' },
+  tabText: { color: '#111827' },
+  tabTextActive: { color: '#fff' },
+  tabContentPlaceholder: { padding: 20, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, backgroundColor: '#FAFAFA' },
 });
 

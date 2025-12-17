@@ -19,9 +19,9 @@ export const tenderDraftService = {
         // Convert Date objects to ISO strings for Firestore
         if (value instanceof Date) {
           acc[key] = value.toISOString();
-        } else if (typeof value === 'object' && value !== null && 'toDate' in value) {
+        } else if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as any).toDate === 'function') {
           // Firestore Timestamp
-          acc[key] = value.toDate().toISOString();
+          acc[key] = (value as any).toDate().toISOString();
         } else {
           acc[key] = value;
         }

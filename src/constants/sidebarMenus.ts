@@ -29,7 +29,6 @@ export const TENDER_MODULE_NAV: MenuItem[] = [
 export const RATE_ANALYSIS_NAV: MenuItem[] = [
   { key: 'RateAnalysis', label: 'All Tenders', icon: '🧮' },
   { key: 'MasterRateData', label: 'Master Rate Data', icon: '📊' },
-  { key: 'SSRDSR', label: 'SSR/DSR', icon: '📋' },
   { key: 'Dashboard', label: '← Back to Main', icon: '🏠' },
 ];
 
@@ -50,6 +49,7 @@ export const ENGINEERING_NAV: MenuItem[] = [
 // Projects module sub-navigation
 export const PROJECTS_NAV: MenuItem[] = [
   { key: 'Projects', label: 'Projects Home', icon: '🏗️' },
+  { key: 'Reports', label: 'Reports', icon: '📊' },
   { key: 'Dashboard', label: '← Back to Main', icon: '🏠' },
 ];
 

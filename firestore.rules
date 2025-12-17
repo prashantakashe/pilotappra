@@ -1,225 +1,162 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // TEMPORARY: Allow all authenticated users full access to all collections
+    // Role-based access control will be implemented later
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     // ---- Users ----
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
+      allow read, create, update: if isAuthenticated();
       allow delete: if false;
     }
 
-    // ---- Messages (server-mediated) ----
+    // ---- Messages ----
     match /messages/{messageId} {
-      allow create: if false; // Only via Cloud Function
-      allow read: if request.auth != null && (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
-      allow update, delete: if false;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
     // ---- Audit Logs ----
     match /audit_logs/{logId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.performedBy;
-      allow create, update, delete: if false; // Only Admin SDK
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
     // ---- Tender Drafts ----
-    // User scoped draft storage: drafts/{userId}/tenderDrafts/{draftId}
     match /drafts/{userId} {
-      // Allow read/write to own drafts
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write, create, update, delete: if isAuthenticated();
       
       match /tenderDrafts/{draftId} {
-        // Explicit allow for draft documents
-        allow read, write, create, update, delete: if request.auth != null && request.auth.uid == userId;
+        allow read, write, create, update, delete: if isAuthenticated();
       }
     }
 
-    // ---- Counters (tender number sequence) ----
+    // ---- Counters ----
     match /_counters/{counterId} {
-      allow read: if request.auth != null; // Non-sensitive; allow reads
-      allow write: if false; // Updated only by Cloud Function transactions
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
     // ---- Tenders & Rate Analysis ----
     match /tenders/{tenderId} {
-      // Read tender if current user is a member or admin
-      allow get: if request.auth != null && (
-        request.auth.token.role == 'admin' ||
-        resource.data.membersMap[request.auth.uid] != null ||
-        resource.data.createdBy == request.auth.uid
-      );
+      allow read, write, create, update, delete: if isAuthenticated();
       
-      // Allow list queries - filtering done client-side or via membersMap
-      allow list: if request.auth != null;
-      
-      // Allow tender updates by creator, members with appropriate roles, or admin
-      allow update: if request.auth != null && (
-        resource.data.createdBy == request.auth.uid ||
-        request.auth.token.role == 'admin' ||
-        resource.data.membersMap[request.auth.uid] in ['manager', 'editor', 'admin']
-      );
-      
-      // Allow create for authenticated users
-      allow create: if request.auth != null;
-      
-      // Only admins can delete
-      allow delete: if request.auth != null && request.auth.token.role == 'admin';
-
-      // Rate Analysis subcollection
       match /rateAnalysis/{raId} {
-        allow get: if request.auth != null && (
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] != null ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid
-        );
-        allow list: if request.auth != null;
-        allow create, update: if request.auth != null && (
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] in ['manager', 'editor', 'admin'] ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid
-        );
-        allow delete: if request.auth != null && request.auth.token.role == 'admin';
+        allow read, write, create, update, delete: if isAuthenticated();
       }
 
-      // Documents subcollection (metadata only; files in Storage)
       match /documents/{docId} {
-        allow get: if request.auth != null && (
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] != null ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid
-        );
-        allow list: if request.auth != null;
-        allow create, update: if request.auth != null && (
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] in ['manager', 'editor', 'admin'] ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid
-        );
-        allow delete: if request.auth != null && request.auth.token.role == 'admin';
+        allow read, write, create, update, delete: if isAuthenticated();
       }
 
-      // Status history subcollection
       match /statusHistory/{historyId} {
-        allow get: if request.auth != null && (
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] != null
-        );
-        allow list: if request.auth != null;
-        allow create, update, delete: if false; // Logged via CF
+        allow read, write, create, update, delete: if isAuthenticated();
       }
 
-      // BOQ Items subcollection for large BOQ files (>500 rows)
       match /boqItems/{fileId} {
-        allow read: if request.auth != null && (
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid ||
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] != null
-        );
-        allow write: if request.auth != null && (
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid ||
-          request.auth.token.role == 'admin' ||
-          get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] in ['manager', 'editor', 'admin']
-        );
+        allow read, write, create, update, delete: if isAuthenticated();
         
-        // Chunks subcollection within boqItems
         match /chunks/{chunkId} {
-          allow read: if request.auth != null && (
-            get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid ||
-            request.auth.token.role == 'admin' ||
-            get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] != null
-          );
-          allow write: if request.auth != null && (
-            get(/databases/$(database)/documents/tenders/$(tenderId)).data.createdBy == request.auth.uid ||
-            request.auth.token.role == 'admin' ||
-            get(/databases/$(database)/documents/tenders/$(tenderId)).data.membersMap[request.auth.uid] in ['manager', 'editor', 'admin']
-          );
+          allow read, write, create, update, delete: if isAuthenticated();
         }
       }
     }
 
     // ---- Escalation Bill Module ----
-    // Escalation Masters
     match /escalation_masters/{masterId} {
-      // Allow authenticated users to read/write escalation masters
-      allow read, list: if request.auth != null;
-      allow create, update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // Price Indices (shared data)
     match /price_indices/{indexId} {
-      // Allow all authenticated users to read/write price indices
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // Escalation Bills
     match /escalation_bills/{billId} {
-      // Allow authenticated users to read/write escalation bills
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
     // ---- Daily Work Status Module ----
-    // DWS Projects
     match /dws_projects/{projectId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // DWS Personnel
     match /dws_personnel/{personnelId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // DWS Statuses
     match /dws_statuses/{statusId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // DWS Daily Entries
     match /dws_entries/{entryId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // DWS Users
     match /dws_users/{userId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
     // ---- Rate Analysis Sub-Modules ----
-    // Master Rate Data
     match /masterRateData/{itemId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // SSR/DSR Data
-    match /ssrDsrData/{itemId} {
-      allow read, list: if request.auth != null;
-      allow create, update, delete: if request.auth != null;
+    // ---- DSR (Detailed Schedule of Rates) Module ----
+    match /dsr_projects/{projectId} {
+      allow read, write, create, update, delete: if isAuthenticated();
+      
+      match /boq_uploads/{uploadId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /recap_sheets/{recapId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /summary_sheets/{summaryId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /abstract_sheets/{abstractId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /measurement_sheets/{measurementId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /rate_analysis/{analysisId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /lead_charts/{chartId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /final_boq/{finalBOQId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
+      
+      match /file_operations/{operationId} {
+        allow read, write, create, update, delete: if isAuthenticated();
+      }
     }
 
     // ---- App Settings ----
     match /appSettings/{settingId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // ---- Mail Collection (for Firebase Email Extension) ----
+    // ---- Mail Collection ----
     match /mail/{mailId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if false; // Only extension can update
+      allow read, write, create, update, delete: if isAuthenticated();
     }
 
-    // Catch-all deny for any other direct access
+    // Catch-all: Allow authenticated users access to everything else
     match /{document=**} {
-      allow get, list: if false;
-      allow write: if false;
+      allow read, write, create, update, delete: if isAuthenticated();
     }
   }
 }

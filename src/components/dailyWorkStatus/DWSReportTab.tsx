@@ -1023,7 +1023,7 @@ export const DWSReportTab: React.FC = () => {
 
   // Export Workload Distribution to Excel
   const exportWorkloadDistributionExcel = () => {
-    if (!workloadData || workloadData.length === 0) return;
+    if (!workloadData || !workloadData.personnelWorkload || workloadData.personnelWorkload.length === 0) return;
     
     try {
       const workbook = XLSX.utils.book_new();
@@ -1052,8 +1052,8 @@ export const DWSReportTab: React.FC = () => {
         ['Personnel Name', 'Total Tasks', 'Total Hours', 'Completed', 'Ongoing', 'Not Started', 'Overdue', 'Upcoming Deadlines', 'Top Projects']
       ];
       
-      workloadData.forEach(person => {
-        const topProjects = Object.entries(person.tasksByProject)
+      workloadData.personnelWorkload.forEach(person => {
+        const topProjects = Object.entries(person.tasksByProject || {})
           .sort(([, a], [, b]) => (b as number) - (a as number))
           .slice(0, 3)
           .map(([project, count]) => `${project} (${count})`)
@@ -1078,8 +1078,8 @@ export const DWSReportTab: React.FC = () => {
       // Recent Activities Sheet
       const activitiesData = [['Personnel', 'Activity', 'Project', 'Date']];
       
-      workloadData.forEach(person => {
-        person.recentActivities.forEach(activity => {
+      workloadData.personnelWorkload.forEach(person => {
+        (person.recentActivities || []).forEach(activity => {
           activitiesData.push([
             person.name,
             activity.activity,
@@ -1106,14 +1106,14 @@ export const DWSReportTab: React.FC = () => {
 
   // Export Workload Distribution to PDF
   const exportWorkloadDistributionPDF = () => {
-    if (!workloadData || workloadData.length === 0) return;
+    if (!workloadData || !workloadData.personnelWorkload || workloadData.personnelWorkload.length === 0) return;
     
     try {
       if (Platform.OS === 'web') {
-        const totalTasks = workloadData.reduce((sum, p) => sum + p.totalTasks, 0);
-        const totalHours = workloadData.reduce((sum, p) => sum + p.totalHours, 0);
-        const completedTasks = workloadData.reduce((sum, p) => sum + p.completedTasks, 0);
-        const overdueTasks = workloadData.reduce((sum, p) => sum + p.overdueTasks, 0);
+        const totalTasks = workloadData.totalTasks;
+        const totalHours = workloadData.totalHours;
+        const completedTasks = workloadData.personnelWorkload.reduce((sum, p) => sum + (p.completedTasks || 0), 0);
+        const overdueTasks = workloadData.personnelWorkload.reduce((sum, p) => sum + (p.overdueTasks || 0), 0);
         
         const htmlContent = `
           <!DOCTYPE html>
@@ -1846,7 +1846,7 @@ export const DWSReportTab: React.FC = () => {
   const handleGenerateTargetAchievement = async () => {
     try {
       const entries = await dailyWorkStatusService.getAllEntries();
-      const projects = await dailyWorkStatusService.getProjects();
+      const projects = await dailyWorkStatusService.getAllProjects();
       
       const projectMap: Record<string, any> = {};
       
@@ -1948,25 +1948,27 @@ export const DWSReportTab: React.FC = () => {
       entries.forEach(entry => {
         if (entry.statusUpdates && entry.statusUpdates.length > 1) {
           for (let i = 1; i < entry.statusUpdates.length; i++) {
-            const fromStatus = entry.statusUpdates[i - 1].status;
-            const toStatus = entry.statusUpdates[i].status;
-            const date = entry.statusUpdates[i].date;
+            // Note: statusUpdates contains note, timestamp, updatedBy
+            // For status tracking, we need to use entry.status instead
+            const fromNote = entry.statusUpdates[i - 1].note || '';
+            const toNote = entry.statusUpdates[i].note || '';
+            const date = entry.statusUpdates[i].timestamp;
             
             conversions.push({
               projectName: entry.projectName,
               activity: entry.mainActivity,
               assignedTo: entry.assignedTo,
-              fromStatus,
-              toStatus,
+              fromStatus: fromNote,
+              toStatus: toNote,
               date,
               hours: entry.hours
             });
             
             // Build conversion matrix
-            if (!conversionMatrix[fromStatus]) {
-              conversionMatrix[fromStatus] = {};
+            if (!conversionMatrix[fromNote]) {
+              conversionMatrix[fromNote] = {};
             }
-            conversionMatrix[fromStatus][toStatus] = (conversionMatrix[fromStatus][toStatus] || 0) + 1;
+            conversionMatrix[fromNote][toNote] = (conversionMatrix[fromNote][toNote] || 0) + 1;
           }
         }
       });
@@ -2381,38 +2383,38 @@ export const DWSReportTab: React.FC = () => {
       )}
       
       {/* Workload Distribution Display */}
-      {workloadData && workloadData.length > 0 && (
+      {workloadData && workloadData.personnelWorkload && workloadData.personnelWorkload.length > 0 && (
         <View style={styles.workloadContainer}>
           {/* Summary Cards */}
           <View style={styles.delaySummaryRow}>
             <View style={[styles.delaySummaryCard, { borderLeftColor: '#007bff' }]}>
               <Text style={styles.delaySummaryLabel}>👥 Total Personnel</Text>
               <Text style={[styles.delaySummaryValue, { color: '#007bff' }]}>
-                {workloadData.length}
+                {workloadData.personnelWorkload.length}
               </Text>
             </View>
             <View style={[styles.delaySummaryCard, { borderLeftColor: '#6c757d' }]}>
               <Text style={styles.delaySummaryLabel}>📋 Total Tasks</Text>
               <Text style={[styles.delaySummaryValue, { color: '#6c757d' }]}>
-                {workloadData.reduce((sum, p) => sum + p.totalTasks, 0)}
+                {workloadData.totalTasks}
               </Text>
             </View>
             <View style={[styles.delaySummaryCard, { borderLeftColor: '#17a2b8' }]}>
               <Text style={styles.delaySummaryLabel}>⏱️ Total Hours</Text>
               <Text style={[styles.delaySummaryValue, { color: '#17a2b8' }]}>
-                {workloadData.reduce((sum, p) => sum + p.totalHours, 0)}h
+                {workloadData.totalHours}h
               </Text>
             </View>
             <View style={[styles.delaySummaryCard, { borderLeftColor: '#28a745' }]}>
               <Text style={styles.delaySummaryLabel}>✅ Completed</Text>
               <Text style={[styles.delaySummaryValue, { color: '#28a745' }]}>
-                {workloadData.reduce((sum, p) => sum + p.completedTasks, 0)}
+                {workloadData.personnelWorkload.reduce((sum, p) => sum + (p.completedTasks || 0), 0)}
               </Text>
             </View>
             <View style={[styles.delaySummaryCard, { borderLeftColor: '#dc3545' }]}>
               <Text style={styles.delaySummaryLabel}>⚠️ Overdue</Text>
               <Text style={[styles.delaySummaryValue, { color: '#dc3545' }]}>
-                {workloadData.reduce((sum, p) => sum + p.overdueTasks, 0)}
+                {workloadData.personnelWorkload.reduce((sum, p) => sum + (p.overdueTasks || 0), 0)}
               </Text>
             </View>
           </View>
@@ -2435,8 +2437,8 @@ export const DWSReportTab: React.FC = () => {
                   <Text style={[styles.headerCell, { width: 100 }]}>Upcoming</Text>
                   <Text style={[styles.headerCell, { width: 200 }]}>Top Projects</Text>
                 </View>
-                {workloadData.map((person, idx) => {
-                  const topProjects = Object.entries(person.tasksByProject)
+                {workloadData.personnelWorkload.map((person, idx) => {
+                  const topProjects = Object.entries(person.tasksByProject || {})
                     .sort(([, a], [, b]) => (b as number) - (a as number))
                     .slice(0, 3)
                     .map(([project, count]) => `${project} (${count})`)
@@ -2477,7 +2479,7 @@ export const DWSReportTab: React.FC = () => {
           </View>
           
           {/* Recent Activities by Personnel */}
-          {workloadData.some(p => p.recentActivities.length > 0) && (
+          {workloadData.personnelWorkload.some(p => (p.recentActivities || []).length > 0) && (
             <View style={styles.delaySection}>
               <Text style={[styles.delaySectionTitle, { backgroundColor: '#6c757d' }]}>
                 📝 RECENT ACTIVITIES
@@ -2490,8 +2492,8 @@ export const DWSReportTab: React.FC = () => {
                     <Text style={[styles.headerCell, { width: 150 }]}>Project</Text>
                     <Text style={[styles.headerCell, { width: 120 }]}>Date</Text>
                   </View>
-                  {workloadData.flatMap(person => 
-                    person.recentActivities.map((activity, actIdx) => (
+                  {workloadData.personnelWorkload.flatMap(person => 
+                    (person.recentActivities || []).map((activity, actIdx) => (
                       <View key={`${person.name}-${actIdx}`} style={styles.tableRow}>
                         <Text style={[styles.tableCell, { width: 150 }]}>{person.name}</Text>
                         <Text style={[styles.tableCell, { width: 200 }]} numberOfLines={2}>{activity.activity}</Text>

@@ -159,151 +159,10 @@ export const MasterRateDataScreen: React.FC<{ navigation: any }> = ({ navigation
       activeRoute="MasterRateData"
       sidebarItems={RATE_ANALYSIS_NAV}
     >
-      <View style={styles.container}>
-        {/* Form Section */}
-        <View style={styles.formSection}>
-          <Text style={styles.formTitle}>
-            {editingId ? 'Edit Rate Item' : 'Add New Rate Item'}
-          </Text>
-          
-          <View style={styles.formRow}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Item Code *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.itemCode}
-                onChangeText={(text) => setFormData({ ...formData, itemCode: text })}
-                placeholder="e.g., ITEM-001"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Unit</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.unit}
-                onChangeText={(text) => setFormData({ ...formData, unit: text })}
-                placeholder="e.g., m3, m2, nos"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Rate *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.rate}
-                onChangeText={(text) => setFormData({ ...formData, rate: text })}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={[styles.formGroup, { flex: 2 }]}>
-              <Text style={styles.label}>Description *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-                placeholder="Enter description"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Category</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.category}
-                onChangeText={(text) => setFormData({ ...formData, category: text })}
-                placeholder="e.g., Earthwork"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Sub-Category</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.subCategory}
-                onChangeText={(text) => setFormData({ ...formData, subCategory: text })}
-                placeholder="e.g., Excavation"
-              />
-            </View>
-          </View>
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>
-                {editingId ? '💾 Update' : '➕ Add'}
-              </Text>
-            </TouchableOpacity>
-            {editingId && (
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-                <Text style={styles.cancelButtonText}>✕ Cancel</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* List Section */}
-        <View style={styles.listSection}>
-          <Text style={styles.listTitle}>Rate Items ({rateItems.length})</Text>
-          
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007bff" />
-              <Text style={styles.loadingText}>Loading rate items...</Text>
-            </View>
-          ) : rateItems.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📊</Text>
-              <Text style={styles.emptyText}>No rate items found</Text>
-              <Text style={styles.emptySubtext}>Add your first rate item using the form above</Text>
-            </View>
-          ) : (
-            <ScrollView style={styles.tableContainer}>
-              <View style={styles.table}>
-                {/* Table Header */}
-                <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderCell, { width: 100 }]}>Item Code</Text>
-                  <Text style={[styles.tableHeaderCell, { width: 300 }]}>Description</Text>
-                  <Text style={[styles.tableHeaderCell, { width: 80 }]}>Unit</Text>
-                  <Text style={[styles.tableHeaderCell, { width: 100 }]}>Rate</Text>
-                  <Text style={[styles.tableHeaderCell, { width: 120 }]}>Category</Text>
-                  <Text style={[styles.tableHeaderCell, { width: 120 }]}>Sub-Category</Text>
-                  <Text style={[styles.tableHeaderCell, { width: 120 }]}>Actions</Text>
-                </View>
-
-                {/* Table Rows */}
-                {rateItems.map((item) => (
-                  <View key={item.id} style={styles.tableRow}>
-                    <Text style={[styles.tableCell, { width: 100 }]}>{item.itemCode}</Text>
-                    <Text style={[styles.tableCell, { width: 300 }]}>{item.description}</Text>
-                    <Text style={[styles.tableCell, { width: 80 }]}>{item.unit}</Text>
-                    <Text style={[styles.tableCell, { width: 100 }]}>₹{item.rate.toFixed(2)}</Text>
-                    <Text style={[styles.tableCell, { width: 120 }]}>{item.category}</Text>
-                    <Text style={[styles.tableCell, { width: 120 }]}>{item.subCategory}</Text>
-                    <Text style={[styles.tableCell, { width: 120 }]}>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TouchableOpacity
-                        style={styles.editButton}
-                        onPress={() => handleEdit(item)}
-                      >
-                        <Text style={styles.actionButtonText}>✏️</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.deleteButton}
-                        onPress={() => handleDelete(item.id)}
-                      >
-                        <Text style={styles.actionButtonText}>🗑️</Text>
-                      </TouchableOpacity>
-                      </View>
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          )}
+      <View style={[styles.container, styles.comingContainer]}>
+        <View style={styles.comingCard}>
+          <Text style={styles.comingTitle}>Master Rate Data</Text>
+          <Text style={styles.comingText}>Coming</Text>
         </View>
       </View>
     </AppLayout>
@@ -315,6 +174,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
     padding: 20,
+  },
+  comingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 40,
+  },
+  comingCard: {
+    width: '60%',
+    minHeight: 200,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  comingTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#111827',
+  },
+  comingText: {
+    fontSize: 18,
+    color: '#6B7280',
   },
   formSection: {
     backgroundColor: '#fff',

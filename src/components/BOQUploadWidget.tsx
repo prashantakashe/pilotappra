@@ -6,7 +6,7 @@ import { parseBoqFile, type ParseResult } from '../services/boqParser';
 interface BOQUploadWidgetProps {
   tenderId: string;
   uploadedFileName: string | null;
-  onFileUpload: (fileName: string, parseResult?: ParseResult) => Promise<void>;
+  onFileUpload: (fileName: string, parseResult?: ParseResult, fileMetadata?: { size: number; lastModified: number }) => Promise<void>;
 }
 
 export const BOQUploadWidget: React.FC<BOQUploadWidgetProps> = ({
@@ -35,12 +35,15 @@ export const BOQUploadWidget: React.FC<BOQUploadWidgetProps> = ({
           try {
             for (let i = 0; i < files.length; i++) {
               const file = files[i];
-              console.log('[BOQUploadWidget] File selected:', file.name);
+              console.log('[BOQUploadWidget] File selected:', file.name, 'Size:', file.size, 'LastModified:', file.lastModified);
               const arrayBuffer = await file.arrayBuffer();
               console.log('[BOQUploadWidget] Starting parse...');
               const parseResult = await parseBoqFile(arrayBuffer, file.name);
               console.log('[BOQUploadWidget] Parse complete for', file.name);
-              await onFileUpload(file.name, parseResult);
+              await onFileUpload(file.name, parseResult, {
+                size: file.size,
+                lastModified: file.lastModified,
+              });
               console.log('[BOQUploadWidget] Uploaded parsed BOQ for', file.name);
             }
           } catch (error: any) {
